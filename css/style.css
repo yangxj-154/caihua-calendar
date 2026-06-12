@@ -1,0 +1,687 @@
+/* ==========================================
+   菜花日历 v2 - 一屏式布局
+   设计原则：日历为主，一屏看完，极简无装饰
+   ========================================== */
+
+:root {
+  --bg: #f5f5f5;
+  --card: #ffffff;
+  --card-frosted: rgba(255,255,255,0.85);
+  --text: #1a1a1a;
+  --text-secondary: #888;
+  --text-hint: #bbb;
+  --border: #eee;
+  --accent: #4A90D9;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-card: 0 2px 12px rgba(0,0,0,0.06);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  --cat-work: #4A90D9;
+  --cat-work-bg: #EBF3FC;
+  --cat-study: #FA8C16;
+  --cat-study-bg: #FFF3E8;
+  --cat-travel: #722ED1;
+  --cat-travel-bg: #F3EAFA;
+  --cat-personal: #52C41A;
+  --cat-personal-bg: #EDF9E8;
+  --cat-default: #8C8C8C;
+  --cat-default-bg: #F0F0F0;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding-bottom: 70px; /* 给底部输入框留空间 */
+}
+
+/* ========== 里程碑横条（倒数日/计日） ========== */
+
+.milestone-bar {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px 6px;
+  gap: 6px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.milestone-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  flex: 1;
+  padding: 2px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.milestone-scroll::-webkit-scrollbar { display: none; }
+
+.ms-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: default;
+  position: relative;
+}
+
+.ms-tag.countdown {
+  background: var(--cat-work-bg);
+  color: var(--cat-work);
+}
+
+.ms-tag.counter {
+  background: var(--cat-personal-bg);
+  color: var(--cat-personal);
+}
+
+.ms-tag .ms-label {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.ms-tag .ms-num {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.ms-tag .ms-unit {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.ms-tag .ms-title {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-tag .ms-del {
+  display: none;
+  margin-left: 2px;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: rgba(0,0,0,0.1);
+  border-radius: 50%;
+  font-size: 10px;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.ms-tag:hover .ms-del,
+.ms-tag:active .ms-del {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-add-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 16px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ms-add-btn:active { background: var(--bg); }
+
+/* 里程碑添加弹窗 */
+
+.ms-form-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ms-form-overlay.show {
+  display: flex;
+}
+
+.ms-form-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: var(--shadow-card);
+}
+
+.ms-form-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.ms-form-type {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ms-type-btn {
+  flex: 1;
+  padding: 8px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.ms-type-btn.active {
+  border-color: var(--accent);
+  background: var(--cat-work-bg);
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.ms-type-btn[data-type="counter"].active {
+  background: var(--cat-personal-bg);
+  color: var(--cat-personal);
+  border-color: var(--cat-personal);
+}
+
+.ms-form-card input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.ms-form-card input:focus { border-color: var(--accent); }
+
+.ms-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.ms-form-actions button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-cancel { background: var(--bg); color: var(--text-secondary); }
+
+/* ========== 日历区 ========== */
+
+.calendar-section {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+}
+
+.cal-nav-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: var(--bg);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+}
+
+.cal-nav-btn:active { background: var(--border); }
+
+.calendar-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.today-btn {
+  font-size: 12px;
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  border-radius: 20px;
+  cursor: pointer;
+  color: var(--accent);
+  font-family: inherit;
+}
+
+.today-btn:active { background: var(--bg); }
+
+/* 日历网格 */
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 4px 8px 8px;
+  gap: 1px;
+}
+
+.cal-header {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  font-weight: 500;
+}
+
+.cal-cell {
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 0 2px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+  position: relative;
+}
+
+.cal-cell:active { background: var(--bg); }
+
+.cal-cell.dim {
+  color: #ddd;
+  cursor: default;
+  pointer-events: none;
+}
+
+.cal-date {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 500;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.cal-cell.today .cal-date {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.cal-cell.selected .cal-date {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* 事件缩略：日历格子内的小色条 */
+
+.cal-events {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0 2px;
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.cal-evt-bar {
+  height: 3px;
+  border-radius: 2px;
+  width: 100%;
+}
+
+/* 如果只有1-2个事件，显示文字 */
+.cal-evt-text {
+  font-size: 8px;
+  line-height: 1.2;
+  padding: 0 1px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 400;
+}
+
+.cal-more {
+  font-size: 8px;
+  color: var(--text-hint);
+  text-align: center;
+  line-height: 1;
+}
+
+/* ========== 事件列表区 ========== */
+
+.event-section {
+  padding: 12px 16px;
+}
+
+.event-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.event-section-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.add-evt-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--card);
+  font-size: 16px;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-evt-btn:active { background: var(--bg); }
+
+.evt-item {
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.evt-color-bar {
+  width: 3px;
+  height: 28px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.evt-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.evt-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+
+.evt-time {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.evt-cat {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.evt-rec {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.evt-title {
+  font-size: 14px;
+  font-weight: 500;
+  padding-right: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.evt-delete {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  color: var(--text-hint);
+  cursor: pointer;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.evt-item:hover .evt-delete,
+.evt-item:active .evt-delete {
+  opacity: 1;
+}
+
+.empty-hint {
+  text-align: center;
+  color: var(--text-hint);
+  font-size: 13px;
+  padding: 24px 0;
+}
+
+/* ========== 底部输入框 ========== */
+
+.input-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 520px;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding: 10px 12px;
+  padding-bottom: calc(10px + var(--safe-bottom));
+  background: var(--card-frosted);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  z-index: 100;
+}
+
+.input-bar textarea {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  max-height: 100px;
+  min-height: 36px;
+  line-height: 1.4;
+  background: var(--card);
+  transition: border-color 0.2s;
+}
+
+.input-bar textarea:focus { border-color: var(--accent); }
+.input-bar textarea::placeholder { color: var(--text-hint); }
+
+.send-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.send-btn:active { transform: scale(0.92); opacity: 0.8; }
+
+/* ========== 快速添加弹窗 ========== */
+
+.quick-add-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.quick-add-overlay.show { display: flex; }
+
+.quick-add-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  max-width: 340px;
+  box-shadow: var(--shadow-card);
+}
+
+.quick-add-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+
+.quick-add-card input[type="text"],
+.quick-add-card input[type="time"] {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.quick-add-card input:focus { border-color: var(--accent); }
+
+.quick-add-row {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.quick-add-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* ========== Toast 提示 ========== */
+
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(26,26,26,0.85);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 13px;
+  z-index: 300;
+  opacity: 0;
+  transition: all 0.3s;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ========== 桌面端 ========== */
+
+@media (min-width: 521px) {
+  body {
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+  .input-bar {
+    border-left: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+  }
+}
+
+/* ========== 小屏适配 ========== */
+
+@media (max-width: 370px) {
+  .cal-cell { min-height: 44px; }
+  .cal-date { font-size: 13px; width: 22px; height: 22px; }
+  .cal-evt-text { display: none; }
+  .ms-tag { font-size: 11px; padding: 3px 10px; }
+}
+
+/* 滚动条 */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }

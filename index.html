@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#4A90D9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="菜花日历">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<script src="https://alcdn.msauth.net/browser/2.28.3/js/msal-browser.min.js"></script>
+<title>菜花日历</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#1a1a1a;max-width:520px;margin:0 auto;padding-bottom:72px}
+.top-bar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #eee}
+.countdown-bar{display:flex;align-items:center;padding:6px 12px;gap:6px;background:#EBF3FC;min-height:32px}
+.countdown-bar .label{font-size:10px;color:#4A90D9;font-weight:600;flex-shrink:0;opacity:.7}
+.cd-scroll{display:flex;gap:6px;overflow-x:auto;flex:1;scrollbar-width:none}
+.cd-scroll::-webkit-scrollbar{display:none}
+.cd-row{display:flex;flex-wrap:nowrap;gap:6px;max-height:24px;overflow-x:auto;overflow-y:hidden;flex:1}
+.cd-row.wrap{flex-wrap:wrap;max-height:56px;overflow-y:auto}
+.counter-bar{display:flex;align-items:center;padding:4px 12px;gap:6px;background:#EDF9E8;border-top:1px solid #dcf0d5;min-height:28px}
+.counter-bar .label{font-size:10px;color:#52C41A;font-weight:600;flex-shrink:0;opacity:.7}
+.ct-scroll{display:flex;gap:6px;overflow-x:auto;flex:1;scrollbar-width:none}
+.ct-scroll::-webkit-scrollbar{display:none}
+.mtag{display:inline-flex;align-items:center;gap:2px;padding:2px 8px;border-radius:12px;font-size:11px;white-space:nowrap;flex-shrink:0;cursor:default}
+.mtag.cd{background:#fff;color:#4A90D9}
+.mtag.ct{background:#fff;color:#52C41A}
+.mtag .n{font-weight:700;font-size:12px}
+.mtag .x{display:none;margin-left:2px;width:11px;height:11px;border-radius:50%;background:rgba(0,0,0,.08);font-size:7px;cursor:pointer}
+.mtag:active .x{display:inline-flex;align-items:center;justify-content:center}
+.top-add{width:22px;height:22px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:transparent;font-size:12px;color:#999;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.countdown-bar .top-add{border-color:rgba(74,144,217,.3);color:#4A90D9}
+.counter-bar .top-add{border-color:rgba(82,196,26,.3);color:#52C41A}
+.csec{background:#fff;border-bottom:1px solid #eee}
+.cnav{display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
+.cnb{width:28px;height:28px;border:none;background:#f5f5f5;border-radius:50%;font-size:18px;cursor:pointer;color:#333}
+.cttl{font-size:15px;font-weight:600}
+.cttl span{color:#4A90D9;font-size:10px;margin-left:4px}
+.ctoday{font-size:11px;padding:4px 10px;border:1px solid #eee;background:#fff;border-radius:14px;cursor:pointer;color:#4A90D9}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);padding:2px 6px 6px;gap:1px}
+.chdr{text-align:center;font-size:10px;color:#999;padding:3px 0}
+.ccell{min-height:48px;display:flex;flex-direction:column;align-items:center;padding:3px 1px;cursor:pointer;border-radius:8px;transition:background .15s}
+.ccell:active{background:#f0f0f0}
+.ccell.dim{opacity:.25;pointer-events:none}
+.ccell.sel{background:#e8f4ff}
+.cdnum{font-size:13px;font-weight:500;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.ccell.today .cdnum{background:#4A90D9;color:#fff;font-weight:700}
+.ccell.sel .cdnum{background:#4A90D9;color:#fff}
+.cevts{width:100%;margin-top:1px;overflow:hidden;text-align:center}
+.cevt{font-size:8px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;padding:1px 3px;border-radius:2px;margin:1px 0;cursor:pointer;color:#fff}
+.cevt:active{opacity:.7}
+.cmore{font-size:7px;color:#bbb;margin-top:1px}
+/* 底部事件列表 */
+.elist{background:#fff;margin-top:8px;padding:12px 16px;border-top:1px solid #eee;border-bottom:1px solid #eee}
+.elist h4{font-size:13px;color:#666;margin-bottom:10px;font-weight:500}
+.eitem{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f5f5f5}
+.eitem:last-child{border-bottom:none}
+.eitem .bar{width:3px;height:20px;border-radius:2px}
+.eitem .txt{flex:1;font-size:14px}
+.eitem .tm{font-size:11px;color:#999}
+.eitem .rec{font-size:10px;color:#4A90D9;background:#EBF3FC;padding:1px 6px;border-radius:10px}
+/* 输入 */
+.ibar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:520px;width:100%;display:flex;gap:6px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0));background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-top:1px solid #eee;z-index:100}
+.ibar textarea{flex:1;border:1px solid #eee;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:80px;min-height:34px;line-height:1.4}
+.ibar textarea:focus{border-color:#4A90D9}
+.ibar textarea::placeholder{color:#bbb}
+.sbtn{width:34px;height:34px;border:none;border-radius:50%;background:#4A90D9;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0}
+/* 弹窗 */
+.ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200;align-items:center;justify-content:center;padding:20px}
+.ovl.on{display:flex}
+.dlg{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:320px}
+.dlg h3{font-size:15px;margin-bottom:14px}
+.dlg input,.dlg select{width:100%;padding:9px 12px;border:1px solid #eee;border-radius:8px;font-size:14px;font-family:inherit;outline:none;margin-bottom:8px;background:#fff}
+.dlg input:focus,.dlg select:focus{border-color:#4A90D9}
+.dlg label.switch{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:#666;cursor:pointer}
+.dlg label.switch input[type=checkbox]{width:auto;margin:0;accent-color:#4A90D9}
+.dlg .rec-opts{margin-bottom:8px;display:none}
+.dlg .rec-opts.on{display:block}
+.dlg .rec-opts select{width:100%}
+.dlg .rec-opts .day-pick{display:flex;gap:4px;margin-top:8px}
+.dlg .rec-opts .day-pick span{flex:1;text-align:center;padding:5px 0;border:1px solid #eee;border-radius:6px;font-size:11px;cursor:pointer}
+.dlg .rec-opts .day-pick span.on{background:#4A90D9;color:#fff;border-color:#4A90D9}
+.dlg .rec-opts input[type=number]{width:80px;margin-top:8px}
+.cpick{display:flex;gap:8px;margin-bottom:8px}
+.cpick span{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+.cpick span.on{border-color:#333;box-shadow:0 0 0 2px #fff,0 0 0 4px currentColor}
+.dlg-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
+.dlg-btns button{padding:7px 18px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
+.dlg-btns .ok{background:#4A90D9;color:#fff}
+.dlg-btns .no{background:#f5f5f5;color:#888}
+.dlg-btns .del{background:#ff4d4f;color:#fff}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:.3s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="countdown-bar">
+    <span class="label">倒数</span>
+    <div class="cd-row" id="cdrow"></div>
+    <button class="top-add" id="cdadd">+</button>
+  </div>
+  <div class="counter-bar">
+    <span class="label">计日</span>
+    <div class="ct-scroll" id="ctrow"></div>
+    <button class="top-add" id="ctadd">+</button>
+  </div>
+</div>
+
+<div class="ovl" id="mo">
+  <div class="dlg">
+    <h3 id="mhdr">添加倒数日</h3>
+    <input type="text" id="mt" placeholder="如：汕头出发">
+    <input type="date" id="md">
+    <div class="dlg-btns">
+      <button class="no" id="mc">取消</button>
+      <button class="ok" id="mk">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="eo">
+  <div class="dlg">
+    <h3>编辑事件</h3>
+    <input type="text" id="et" placeholder="事件名称">
+    <input type="date" id="ed">
+    <input type="time" id="etm">
+    <div class="cpick">
+      <span style="background:#4A90D9" data-c="blue"></span>
+      <span style="background:#52C41A" data-c="green"></span>
+      <span style="background:#FAAD14" data-c="yellow"></span>
+      <span style="background:#FF4D4F" data-c="red"></span>
+    </div>
+    <label class="switch"><input type="checkbox" id="rec-toggle"> 循环</label>
+    <div class="rec-opts" id="rec-opts">
+      <select id="rec-type">
+        <option value="daily">每天</option>
+        <option value="weekdays">工作日</option>
+        <option value="weekly">每周</option>
+        <option value="monthly">每月</option>
+      </select>
+      <div class="day-pick" id="rec-days" style="display:none">
+        <span data-d="1">一</span><span data-d="2">二</span><span data-d="3">三</span><span data-d="4">四</span><span data-d="5">五</span><span data-d="6">六</span><span data-d="0">日</span>
+      </div>
+      <input type="number" id="rec-mday" placeholder="几号" min="1" max="31" style="display:none">
+      <label class="switch" style="margin-top:8px"><input type="checkbox" id="rec-countdown" checked> 显示在倒数日</label>
+    </div>
+    <div class="dlg-btns">
+      <button class="del" id="edel">删除</button>
+      <div style="flex:1"></div>
+      <button class="no" id="ecancel">取消</button>
+      <button class="ok" id="esave">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="so">
+  <div class="dlg">
+    <h3>☁ 云端同步</h3>
+    <p style="font-size:12px;color:#999;margin-bottom:12px">通过 GitHub Gist 在多设备间同步数据</p>
+    <label style="font-size:12px;color:#666">GitHub Token</label>
+    <input type="password" id="sgtoken" placeholder="ghp_xxxxxxxxxxxx">
+    <label style="font-size:12px;color:#666">Gist ID（首次上传后自动生成）</label>
+    <input type="text" id="sgid" placeholder="上传后自动填充">
+    <div style="font-size:11px;color:#999;margin:8px 0">
+      如何获取？<a href="https://github.com/settings/tokens" target="_blank" style="color:#4A90D9">创建 Token</a>，勾选 <b>gist</b> 权限即可
+    </div>
+    <div class="dlg-btns">
+      <button class="no" id="scancel">取消</button>
+      <button class="ok" id="supload">上传到云端</button>
+      <button class="ok" id="sdownload">从云端下载</button>
+    </div>
+  </div>
+</div>
+
+<div class="ovl" id="oo">
+  <div class="dlg">
+    <h3>📧 Outlook 同步</h3>
+    <p id="oostatus" style="font-size:12px;color:#999;margin-bottom:12px">未登录</p>
+    <div id="ooconfig" style="margin-bottom:12px">
+      <label style="font-size:12px;color:#666">Azure 应用 ID（Client ID）</label>
+      <input type="text" id="ocid" placeholder="粘贴你的 Client ID">
+      <div style="font-size:10px;color:#999;margin-top:4px">
+        如何获取？见下方<a href="#" id="ohelp" style="color:#4A90D9">设置教程</a>
+      </div>
+    </div>
+    <div class="dlg-btns">
+      <button class="no" id="ocancel">关闭</button>
+      <button class="ok" id="ologin">登录 Outlook</button>
+      <button class="ok" id="ologout" style="display:none">退出登录</button>
+      <button class="ok" id="opull" style="display:none">从 Outlook 拉取</button>
+      <button class="ok" id="opush" style="display:none">推送到 Outlook</button>
+    </div>
+    <div id="ohelpbox" style="display:none;margin-top:12px;background:#f8f8f8;padding:10px;border-radius:8px;font-size:11px;line-height:1.6;max-height:200px;overflow-y:auto">
+      <b>Azure 应用注册步骤：</b><br>
+      1. 打开 <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">Azure 应用注册</a><br>
+      2. 点「新注册」→ 名称填「菜花日历」<br>
+      3. 账户类型选「任何组织目录中的帐户和个人 Microsoft 帐户」<br>
+      4. 重定向 URI 选「单页应用(SPA)」→ 填当前网址<br>
+      5. 点「注册」→ 复制「应用程序(客户端) ID」<br>
+      6. 粘贴到上方输入框即可
+    </div>
+  </div>
+</div>
+
+<div class="csec">
+  <div class="cnav">
+    <button class="cnb" id="pm">‹</button>
+    <div class="cttl" id="ct">2026年6月 <span>v21</span></div>
+    <button class="cnb" id="nm">›</button>
+    <button class="ctoday" id="td">今天</button>
+    <button class="ctoday" id="syncbtn" title="云端同步">☁</button>
+    <button class="ctoday" id="outlookbtn" title="Outlook同步">📧</button>
+  </div>
+  <div class="cgrid" id="cg"></div>
+</div>
+
+<!-- 选中日期的事件列表 -->
+<div class="elist" id="el">
+  <h4 id="elt">点击日期查看事件</h4>
+  <div id="elc"></div>
+</div>
+
+<div class="ibar">
+  <textarea id="ci" placeholder="写待办… (如下周一9点 开会 / 每周五 还款)" rows="1"></textarea>
+  <button class="sbtn" id="sb">↑</button>
+</div>
+
+<div class="toast" id="to"></div>
+
+<script>
+// ====== 颜色 ======
+var COLORS={blue:'#4A90D9',green:'#52C41A',yellow:'#FAAD14',red:'#FF4D4F','default':'#8C8C8C'};
+
+// ====== Parser ======
+(function(){var D=['日','一','二','三','四','五','六'],N={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'日':0,'天':0,'七':7};
+function now(){var d=new Date();d.setHours(0,0,0,0);return d}
+function clone(d){return new Date(d.getTime())}
+function getThisWeekday(c){var t=N[c],d=clone(now()),cd=d.getDay(),diff=t-cd;if(diff<0)diff+=7;d.setDate(d.getDate()+diff);return d}
+function getNextWeekday(c,w){var t=N[c],d=clone(now()),cd=d.getDay(),diff=t-cd;if(diff<=0)diff+=7;diff+=(w-1)*7;d.setDate(d.getDate()+diff);return d}
+
+window.Parser={
+ parseLine:function(line){
+  line=line.trim();if(!line)return null;
+  line=line.replace(/^\d+[、，,.。\s]+/,'').trim();if(!line)return null;
+  var r={title:line,date:null,time:null,recurring:null,color:'default',needsClarify:false};
+  // recurring patterns first
+  var pats=[{re:/每天/,fn:function(){return{t:'daily'}}},{re:/(每个)?工作日/,fn:function(){return{t:'weekdays'}}},{re:/每周([一二三四五六日天])/,fn:function(m){return{t:'weekly',d:N[m[1]]}}},{re:/每月(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每个月(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每个月的(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每月的(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}}];
+  for(var i=0;i<pats.length;i++){var m=line.match(pats[i].re);if(m){r.recurring=pats[i].fn(m);r.recurring.matched=m[0];r.title=r.title.replace(m[0],'').trim();break}}
+  // time
+  var tps=[{re:/上午(\d{1,2})点(半|(\d{1,2})分?)?/,fn:function(m){return pad(parseInt(m[1]),m[2]==='半'?30:(m[3]?parseInt(m[3]):0))}},{re:/下午(\d{1,2})点(半|(\d{1,2})分?)?/,fn:function(m){return pad(parseInt(m[1])+12,m[2]==='半'?30:(m[3]?parseInt(m[3]):0))}},{re:/晚上(\d{1,2})点(半|(\d{1,2})分?)?/,fn:function(m){return pad(parseInt(m[1])+12,m[2]==='半'?30:(m[3]?parseInt(m[3]):0))}},{re:/(\d{1,2}):(\d{2})/,fn:function(m){return m[1].padStart(2,'0')+':'+m[2]}},{re:/全天/,fn:function(){return'all_day'}}];
+  for(var i=0;i<tps.length;i++){var m=r.title.match(tps[i].re);if(m){r.time=tps[i].fn(m);r.title=r.title.replace(m[0],'').trim();break}}
+  // date (absolute/relative)
+  var dps=[{re:/^周([一二三四五六])周([一二三四五六日天])/,fn:function(m){return getThisWeekday(m[1])}},{re:/^周([一二三四五六])[日天](?!\S)/,fn:function(m){return getThisWeekday(m[1])}},{re:/^今天/,fn:function(){return clone(now())}},{re:/^明天/,fn:function(){var d=clone(now());d.setDate(d.getDate()+1);return d}},{re:/^后天/,fn:function(){var d=clone(now());d.setDate(d.getDate()+2);return d}},{re:/^大后天/,fn:function(){var d=clone(now());d.setDate(d.getDate()+3);return d}},{re:/^下周([一二三四五六日天])/,fn:function(m){return getNextWeekday(m[1],1)}},{re:/^下下周([一二三四五六日天])/,fn:function(m){return getNextWeekday(m[1],2)}},{re:/^这周([一二三四五六日天])/,fn:function(m){return getThisWeekday(m[1])}},{re:/^周([一二三四五六日天])/,fn:function(m){return getThisWeekday(m[1])}},{re:/^下周(?!\S)/,fn:function(){return getNextWeekday('一',1)}},{re:/^周末/,fn:function(){return getThisWeekday('六')}}];
+  var found=false;
+  for(var i=0;i<dps.length;i++){var m=r.title.match(dps[i].re);if(m){r.date=dps[i].fn(m);r.title=r.title.replace(m[0],'').trim();found=true;break}}
+  if(!found){var am=r.title.match(/^(\d{1,2})月(\d{1,2})[日号]/);if(am){var mo=parseInt(am[1]),dy=parseInt(am[2]);if(mo>=1&&mo<=12&&dy>=1&&dy<=31){var d=new Date(now().getFullYear(),mo-1,dy);if(d<now())d.setFullYear(d.getFullYear()+1);r.date=d;r.title=r.title.replace(am[0],'').trim();found=true}}}
+  if(!found){var dm=r.title.match(/^(\d{1,2})[日号](?![-.\d])/);if(dm){var dy=parseInt(dm[1]);if(dy>=1&&dy<=31){var d=new Date(now().getFullYear(),now().getMonth(),dy);if(d<now())d.setMonth(d.getMonth()+1);r.date=d;r.title=r.title.replace(dm[0],'').trim();found=true}}}
+  // If has recurring but no date found, set date to next occurrence of that weekday (today or next)
+  if(r.recurring&&!r.date&&r.recurring.t==='weekly'){r.date=getNextWeekday(D[r.recurring.d],0)} // 0 = this week or next
+  if(!found&&!r.recurring){r.needsClarify=true}
+  r.title=r.title.replace(/^[,，、。.\s]+/,'').replace(/[,，、。.\s]+$/,'').replace(/^[【\[].*?[】\]]/,'').trim();
+  if(!r.title)r.title='(无标题)';
+  var lo=r.title;
+  if(/红/.test(lo)){r.color='red';r.title=r.title.replace(/红/g,'').trim()}
+  else if(/黄/.test(lo)){r.color='yellow';r.title=r.title.replace(/黄/g,'').trim()}
+  else if(/绿/.test(lo)){r.color='green';r.title=r.title.replace(/绿/g,'').trim()}
+  else if(/蓝/.test(lo)){r.color='blue';r.title=r.title.replace(/蓝/g,'').trim()}
+  if(!r.title||r.title.length<2)r.title='(无标题)';
+  return r},
+ parse:function(text){var self=this;var rv=text.split(/[\n\r]+/).filter(function(l){return l.trim()}).reduce(function(acc,l){var parts=l.trim().split(/[\s,，、]+(?=\d+[、，,.。\s]?\S)/);return acc.concat(parts)},[]).map(function(l){return self.parseLine(l)}).filter(Boolean);var flat=[];rv.forEach(function(r){if(r.date&&/[，、,]/.test(r.title)){r.title.split(/[，、,]/).filter(function(s){return s.trim().length>=2}).forEach(function(s){flat.push({title:s.trim(),date:r.date,time:r.time,recurring:r.recurring,color:r.color,showInCountdown:r.showInCountdown})})}else{flat.push(r)}});return flat},
+ formatDate:function(date){if(!date)return'';return date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate()+' 周'+D[date.getDay()]},
+ recLabel:function(r){if(!r)return'';var m={daily:'每天',weekdays:'工作日'};if(m[r.t])return m[r.t];if(r.t==='weekly')return'每周'+D[r.d];if(r.t==='monthly')return'每月'+r.d+'号';return''}
+};
+function pad(h,m){if(h===12)h=12;if(h>24)h-=12;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
+})();
+
+// ====== Storage ======
+window.Storage=(function(){
+function fmt(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function get(k,d){try{return JSON.parse(localStorage.getItem(k)||d)}catch(e){return JSON.parse(d)}}
+function set(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function matchRec(ev,date){if(ev.date){var d=new Date(ev.date+'T00:00:00');if(isNaN(d.getTime()))return false;if(date<d)return false}var r=ev.recurring;switch(r.t){case'daily':return true;case'weekdays':return date.getDay()>=1&&date.getDay()<=5;case'weekly':return date.getDay()===r.d;case'monthly':return date.getDate()===r.d}return false}
+function getEvs(){return get('cal_evts','[]')}
+function saveEvs(v){set('cal_evts',v)}
+return{
+ matchRec:matchRec,
+ getEvents:getEvs,
+ getEventById:function(id){return getEvs().find(function(e){return e.id===id})||null},
+ getEventsByDate:function(ds){var evs=getEvs(),res=[];var d=new Date(ds+'T00:00:00');for(var i=0;i<evs.length;i++){var ev=evs[i];if(ev.recurring){if(matchRec(ev,d))res.push(ev)}else if(ev.date===ds){res.push(ev)}}return res},
+ addEvents:function(list){var evs=getEvs();list.forEach(function(e){e.id=Date.now().toString(36)+Math.random().toString(36).slice(2,6);e.createdAt=new Date().toISOString();evs.push(e)});saveEvs(evs);return list},
+ updateEvent:function(id,upd){var evs=getEvs(),idx=evs.findIndex(function(e){return e.id===id});if(idx>=0){Object.keys(upd).forEach(function(k){evs[idx][k]=upd[k]});evs[idx].updatedAt=new Date().toISOString();saveEvs(evs);return evs[idx]}return null},
+ deleteEvent:function(id){saveEvs(getEvs().filter(function(e){return e.id!==id}))},
+ getMonthEventDates:function(yy,mm){var evs=getEvs(),map={},f=new Date(yy,mm,1),l=new Date(yy,mm+1,0);
+  for(var i=0;i<evs.length;i++){var ev=evs[i];
+   if(ev.recurring){for(var d=new Date(f.getTime());d<=l;d.setDate(d.getDate()+1)){if(matchRec(ev,new Date(d.getTime()))){var k=fmt(d);if(!map[k])map[k]=[];map[k].push({id:ev.id,title:ev.title,color:ev.color,time:ev.time,recurring:ev.recurring})}}}
+   else if(ev.date){var p=ev.date.split('-'),y=parseInt(p[0]),m2=parseInt(p[1]);if(y===yy&&m2-1===mm){if(!map[ev.date])map[ev.date]=[];map[ev.date].push({id:ev.id,title:ev.title,color:ev.color,time:ev.time,recurring:ev.recurring})}}}
+  return map},
+ formatDateStr:fmt,
+ getMilestones:function(){return get('cal_ms','[]')},
+ addMilestone:function(ms){var list=get('cal_ms','[]');ms.id='ms'+Date.now().toString(36);list.push(ms);set('cal_ms',list)},
+ deleteMilestone:function(id){set('cal_ms',get('cal_ms','[]').filter(function(m){return m.id!==id}))},
+ exportAll:function(){return{events:getEvs(),milestones:get('cal_ms','[]')}},
+ importAll:function(d){if(d.events)saveEvs(d.events);if(d.milestones)set('cal_ms',d.milestones)}
+}})();
+
+// ====== App ======
+(function(){
+var yy,mm,selDate=null;
+function E(s){return document.querySelector(s)}
+function H(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+var curMsType='countdown';
+
+// ====== Outlook Sync ======
+var msalApp=null,outlookLoggedIn=false,msalAccount=null;
+var OUTLOOK_SCOPES=['Calendars.ReadWrite'];
+
+function initMSAL(){
+ var cid=E('#ocid').value.trim();
+ if(!cid){toast('请填写 Client ID');return}
+ localStorage.setItem('cal_msal_cid',cid);
+ msalApp=new msal.PublicClientApplication({
+  auth:{clientId:cid,authority:'https://login.microsoftonline.com/common',redirectUri:window.location.origin},
+  cache:{cacheLocation:'localStorage',storeAuthStateInCookie:false}
+ });
+ return msalApp;
+}
+
+function showOutlook(){
+ E('#oo').classList.add('on');
+ E('#ohelpbox').style.display='none';
+ var cid=localStorage.getItem('cal_msal_cid')||'';
+ E('#ocid').value=cid;
+ updateOutlookUI();
+}
+
+function hideOutlook(){E('#oo').classList.remove('on')}
+
+function updateOutlookUI(){
+ var logged=outlookLoggedIn;
+ E('#ooconfig').style.display=logged?'none':'block';
+ E('#ologin').style.display=logged?'none':'inline-block';
+ E('#ologout').style.display=logged?'inline-block':'none';
+ E('#opull').style.display=logged?'inline-block':'none';
+ E('#opush').style.display=logged?'inline-block':'none';
+ if(logged){
+  var name=msalAccount?(msalAccount.name||msalAccount.username):'Outlook';
+  E('#oostatus').textContent='已登录: '+name;
+  E('#oostatus').style.color='#52C41A';
+ }else{
+  E('#oostatus').textContent='未登录';
+  E('#oostatus').style.color='#999';
+ }
+}
+
+function outlookLogin(){
+ if(!msalApp){msalApp=initMSAL();if(!msalApp)return}
+ msalApp.loginPopup({scopes:OUTLOOK_SCOPES})
+ .then(function(resp){
+  msalAccount=resp.account;outlookLoggedIn=true;
+  msalApp.setActiveAccount(msalAccount);
+  updateOutlookUI();toast('已登录 Outlook');
+ }).catch(function(e){
+  if(e.errorCode!=='user_cancelled')toast('登录失败: '+(e.errorMessage||e.message));
+ });
+}
+
+function outlookLogout(){
+ if(!msalApp)return;
+ msalApp.logoutPopup().then(function(){
+  outlookLoggedIn=false;msalAccount=null;updateOutlookUI();toast('已退出');
+ }).catch(function(){});
+}
+
+function graphCall(endpoint,method,body){
+ if(!msalApp||!msalAccount)return Promise.reject(new Error('未登录'));
+ var req={scopes:OUTLOOK_SCOPES,account:msalAccount};
+ return msalApp.acquireTokenSilent(req).then(function(resp){
+  var opts={method:method||'GET',headers:{Authorization:'Bearer '+resp.accessToken}};
+  if(body){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body)}
+  return fetch('https://graph.microsoft.com/v1.0'+endpoint,opts).then(function(r){
+   if(!r.ok)throw new Error('HTTP '+r.status);
+   return r.json();
+  });
+ });
+}
+
+function outlookPull(){
+ if(!outlookLoggedIn){toast('请先登录');return}
+ toast('正在从 Outlook 拉取...');
+ var now=new Date().toISOString();
+ graphCall('/me/calendar/events?$top=200&$orderby=start/dateTime&$filter=start/dateTime ge \''+now+'\'')
+ .then(function(data){
+  var evts=[];
+  (data.value||[]).forEach(function(oe){
+   var start=oe.start||{},title=oe.subject||'';
+   var d=null;
+   if(start.dateTime){
+    var dt=new Date(start.dateTime);
+    d=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+   }
+   if(!d)return;
+   var tm=null;
+   if(start.dateTime&&!oe.isAllDay){
+    var dt2=new Date(start.dateTime);
+    tm=String(dt2.getHours()).padStart(2,'0')+':'+String(dt2.getMinutes()).padStart(2,'0');
+   }
+   var rec=null;
+   if(oe.recurrence){
+    var p=oe.recurrence.pattern||{};
+    if(p.type==='daily')rec={t:'daily'};
+    else if(p.type==='weekly'&&p.daysOfWeek&&p.daysOfWeek.length===1){
+     var wmap={'monday':1,'tuesday':2,'wednesday':3,'thursday':4,'friday':5,'saturday':6,'sunday':0};
+     var wd=wmap[p.daysOfWeek[0]];if(wd!==undefined)rec={t:'weekly',d:wd};
+    }else if(p.type==='absoluteMonthly'&&p.dayOfMonth)rec={t:'monthly',d:p.dayOfMonth};
+   }
+   evts.push({id:'ol_'+oe.id,title:title,date:d,time:tm,recurring:rec,color:'default',showInCountdown:true});
+  });
+  if(!evts.length){toast('Outlook 中没有事件');return}
+  var existing=Storage.getEvents();
+  var merged=existing.filter(function(e){return !e.id||!e.id.startsWith('ol_')});
+  merged=merged.concat(evts);
+  localStorage.setItem('cal_evts',JSON.stringify(merged));
+  renderAll();toast('从 Outlook 拉取了 '+evts.length+' 个事件');
+ }).catch(function(e){toast('拉取失败: '+e.message)});
+}
+
+function outlookPush(){
+ if(!outlookLoggedIn){toast('请先登录');return}
+ toast('正在推送到 Outlook...');
+ var evts=Storage.getEvents().filter(function(e){return !e.id||!e.id.startsWith('ol_')});
+ var todo=evts.length,ok=0,err=0;
+ if(!todo){toast('没有可推送的事件');return}
+ evts.forEach(function(ev){
+  var body={subject:ev.title};
+  var ds=ev.date+'T'+(ev.time||'00:00')+':00';
+  var de=ev.date+'T'+(ev.time||'23:59')+':59';
+  body.start={dateTime:ds,timeZone:'Asia/Shanghai'};
+  body.end={dateTime:de,timeZone:'Asia/Shanghai'};
+  if(!ev.time)body.isAllDay=true;
+  if(ev.recurring){
+   var r={range:{type:'noEnd',startDate:ev.date},pattern:{}};
+   if(ev.recurring.t==='daily')r.pattern={type:'daily',interval:1};
+   else if(ev.recurring.t==='weekly'){
+    var dmap={0:'sunday',1:'monday',2:'tuesday',3:'wednesday',4:'thursday',5:'friday',6:'saturday'};
+    r.pattern={type:'weekly',interval:1,daysOfWeek:[dmap[ev.recurring.d]]};
+   }else if(ev.recurring.t==='monthly')r.pattern={type:'absoluteMonthly',interval:1,dayOfMonth:ev.recurring.d};
+   body.recurrence=r;
+  }
+  graphCall('/me/calendar/events','POST',body)
+  .then(function(){ok++;if(ok+err>=todo)finalizePush()})
+  .catch(function(){err++;if(ok+err>=todo)finalizePush()});
+ });
+ function finalizePush(){toast('推送完成: '+ok+' 成功, '+err+' 失败')}
+}
+
+function outlookCheckSilent(){
+ var cid=localStorage.getItem('cal_msal_cid');
+ if(!cid)return;
+ msalApp=new msal.PublicClientApplication({
+  auth:{clientId:cid,authority:'https://login.microsoftonline.com/common',redirectUri:window.location.origin},
+  cache:{cacheLocation:'localStorage',storeAuthStateInCookie:false}
+ });
+ var accts=msalApp.getAllAccounts();
+ if(accts&&accts.length>0){
+  msalAccount=accts[0];outlookLoggedIn=true;msalApp.setActiveAccount(msalAccount);
+ }
+}
+
+// ====== GitHub Gist Sync ======
+function showSync(){E('#so').classList.add('on')}
+function hideSync(){E('#so').classList.remove('on')}
+function uploadToGist(){
+ var token=E('#sgtoken').value.trim(),gid=E('#sgid').value.trim();
+ if(!token){toast('请填写 GitHub Token');return}
+ localStorage.setItem('cal_gist_token',token);
+ var data={events:localStorage.getItem('cal_evts')||'[]',milestones:localStorage.getItem('cal_ms')||'[]'};
+ var body={description:'菜花日历数据',public:false,files:{'calendar-data.json':{content:JSON.stringify(data)}}};
+ var method='POST',url='https://api.github.com/gists';
+ if(gid){method='PATCH';url='https://api.github.com/gists/'+gid}
+ fetch(url,{method:method,headers:{Authorization:'token '+token,'Content-Type':'application/json'},body:JSON.stringify(body)})
+ .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+ .then(function(r){
+  if(!gid){E('#sgid').value=r.id;localStorage.setItem('cal_gist_id',r.id)}
+  toast('已上传到云端');
+ }).catch(function(e){toast('上传失败: '+e.message)});
+}
+function downloadFromGist(){
+ var token=E('#sgtoken').value.trim(),gid=E('#sgid').value.trim();
+ if(!token||!gid){toast('请填写 Token 和 Gist ID');return}
+ localStorage.setItem('cal_gist_token',token);localStorage.setItem('cal_gist_id',gid);
+ fetch('https://api.github.com/gists/'+gid,{headers:{Authorization:'token '+token}})
+ .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json()})
+ .then(function(r){
+  var f=r.files['calendar-data.json'];
+  if(!f||!f.content){toast('Gist 中没有数据');return}
+  var data=JSON.parse(f.content);
+  if(data.events){localStorage.setItem('cal_evts',data.events)}
+  if(data.milestones){localStorage.setItem('cal_ms',data.milestones)}
+  toast('已从云端下载');renderAll();
+ }).catch(function(e){toast('下载失败: '+e.message)});
+}
+
+function init(){
+ var n=new Date();yy=n.getFullYear();mm=n.getMonth();selDate=Storage.formatDateStr(n);
+ outlookCheckSilent();updateOutlookUI();
+ bindEvents();renderAll();
+}
+
+function bindEvents(){
+ E('#pm').addEventListener('click',function(){chMonth(-1)});
+ E('#nm').addEventListener('click',function(){chMonth(1)});
+ E('#td').addEventListener('click',goToday);
+ E('#sb').addEventListener('click',handleSend);
+ E('#ci').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend()}});
+ E('#ci').addEventListener('input',autoResize);
+ E('#cdadd').addEventListener('click',function(){showMilestone('countdown')});
+ E('#ctadd').addEventListener('click',function(){showMilestone('counter')});
+ E('#mc').addEventListener('click',hideMilestone);
+ E('#mk').addEventListener('click',saveMilestone);
+ E('#mo').addEventListener('click',function(e){if(e.target===E('#mo'))hideMilestone()});
+ E('#ecancel').addEventListener('click',hideEditEvent);
+ E('#esave').addEventListener('click',saveEditEvent);
+ E('#edel').addEventListener('click',deleteEditEvent);
+ E('#eo').addEventListener('click',function(e){if(e.target===E('#eo'))hideEditEvent()});
+ E('#rec-toggle').addEventListener('change',function(){E('#rec-opts').classList.toggle('on',this.checked);updateRecFields()});
+ E('#rec-type').addEventListener('change',updateRecFields);
+ E('#eo').querySelector('.cpick').addEventListener('click',function(e){var s=e.target.closest('span');if(!s)return;E('#eo').querySelectorAll('.cpick span').forEach(function(x){x.classList.remove('on')});s.classList.add('on')});
+ // Sync
+ E('#syncbtn').addEventListener('click',showSync);
+ E('#scancel').addEventListener('click',hideSync);
+ E('#so').addEventListener('click',function(e){if(e.target===E('#so'))hideSync()});
+ E('#supload').addEventListener('click',uploadToGist);
+ E('#sdownload').addEventListener('click',downloadFromGist);
+ E('#sgtoken').value=localStorage.getItem('cal_gist_token')||'';
+ E('#sgid').value=localStorage.getItem('cal_gist_id')||'';
+ // Outlook
+ E('#outlookbtn').addEventListener('click',showOutlook);
+ E('#ocancel').addEventListener('click',hideOutlook);
+ E('#oo').addEventListener('click',function(e){if(e.target===E('#oo'))hideOutlook()});
+ E('#ologin').addEventListener('click',outlookLogin);
+ E('#ologout').addEventListener('click',outlookLogout);
+ E('#opull').addEventListener('click',outlookPull);
+ E('#opush').addEventListener('click',outlookPush);
+ E('#ohelp').addEventListener('click',function(e){e.preventDefault();E('#ohelpbox').style.display=E('#ohelpbox').style.display==='none'?'block':'none'});
+ // Calendar click - select date
+ E('#cg').addEventListener('click',function(e){
+  var cell=e.target.closest('.ccell');
+  if(cell&&cell.dataset.date){selectDate(cell.dataset.date)}
+  var evt=e.target.closest('.cevt');
+  if(evt&&evt.dataset.id){showEditEvent(evt.dataset.id)}
+ });
+ E('#cdrow').addEventListener('click',function(e){var b=e.target.closest('.x');if(b){Storage.deleteMilestone(b.dataset.id);renderMilestones()}});
+ E('#ctrow').addEventListener('click',function(e){var b=e.target.closest('.x');if(b){Storage.deleteMilestone(b.dataset.id);renderMilestones()}});
+ E('#rec-days').addEventListener('click',function(e){var s=e.target.closest('span');if(!s)return;E('#rec-days').querySelectorAll('span').forEach(function(x){x.classList.remove('on')});s.classList.add('on')});
+}
+
+function updateRecFields(){
+ var t=E('#rec-type').value;
+ E('#rec-days').style.display=(t==='weekly')?'flex':'none';
+ E('#rec-mday').style.display=(t==='monthly')?'block':'none';
+}
+
+function renderAll(){renderMilestones();renderCalendar();renderEventList()}
+
+function selectDate(ds){
+ selDate=ds;
+ renderCalendar(); // update selection highlight
+ renderEventList();
+}
+
+function renderCalendar(){
+ var g=E('#cg'),t=E('#ct'),dm=Storage.getMonthEventDates(yy,mm),td=Storage.formatDateStr(new Date());
+ t.innerHTML=yy+'年'+(mm+1)+'月 <span>v21</span>';
+ var fd=new Date(yy,mm,1).getDay(),dim=new Date(yy,mm+1,0).getDate(),pdim=new Date(yy,mm,0).getDate();
+ var h='';
+ '日一二三四五六'.split('').forEach(function(d){h+='<div class="chdr">'+d+'</div>'});
+ for(var i=fd-1;i>=0;i--){h+='<div class="ccell dim"><div class="cdnum">'+(pdim-i)+'</div></div>'}
+ for(var d=1;d<=dim;d++){
+  var ds=yy+'-'+String(mm+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  var evs=dm[ds]||[],cls='ccell';
+  if(ds===td)cls+=' today';
+  if(ds===selDate)cls+=' sel';
+  var eh='',max=2; // show max 2 in cell
+  for(var i=0;i<Math.min(evs.length,max);i++){
+   var co=COLORS[evs[i].color]||COLORS['default'];
+   eh+='<div class="cevt" data-id="'+evs[i].id+'" style="background:'+co+'">'+H(evs[i].title)+'</div>';
+  }
+  if(evs.length>max){eh+='<div class="cmore">+'+(evs.length-max)+'</div>'}
+  h+='<div class="'+cls+'" data-date="'+ds+'"><div class="cdnum">'+d+'</div>'+(evs.length?'<div class="cevts">'+eh+'</div>':'')+'</div>'
+ }
+ g.innerHTML=h;
+}
+
+function renderEventList(){
+ var h4=E('#elt'),list=E('#elc');
+ if(!selDate){h4.textContent='点击日期查看事件';list.innerHTML='';return}
+ var evs=Storage.getEventsByDate(selDate),d=new Date(selDate+'T00:00:00');
+ h4.textContent=(d.getMonth()+1)+'月'+d.getDate()+'日 ('+['日','一','二','三','四','五','六'][d.getDay()]+')';
+ if(!evs.length){list.innerHTML='<div style="color:#999;font-size:13px;padding:8px 0">暂无事件</div>';return}
+ var html='';
+ evs.forEach(function(ev){
+  var co=COLORS[ev.color]||COLORS['default'],tm=ev.time==='all_day'?'全天':(ev.time||''),rl=ev.recurring?(' 🔁'+Parser.recLabel(ev.recurring)):'';
+  html+='<div class="eitem" data-id="'+ev.id+'"><div class="bar" style="background:'+co+'"></div><div class="txt">'+H(ev.title)+'</div>'+(tm?'<div class="tm">'+tm+'</div>':'')+(rl?'<div class="rec">'+rl+'</div>':'')+'</div>';
+ });
+ list.innerHTML=html;
+ // bind click on list items
+ list.querySelectorAll('.eitem').forEach(function(it){it.addEventListener('click',function(){showEditEvent(this.dataset.id)})});
+}
+
+function chMonth(d){mm+=d;if(mm<0){mm=11;yy--}if(mm>11){mm=0;yy++};renderCalendar();renderEventList()}
+function goToday(){var n=new Date();yy=n.getFullYear();mm=n.getMonth();selDate=Storage.formatDateStr(n);renderCalendar();renderEventList()}
+
+function handleSend(){
+ var t=E('#ci').value.trim();if(!t)return;
+ var evs=Parser.parse(t),ok=evs.filter(function(e){return!e.needsClarify}),nc=evs.filter(function(e){return e.needsClarify});
+ if(evs.length===0){toast('没识别到，试试：下周一9点 开会');return}
+ if(ok.length>0){
+  Storage.addEvents(ok.map(function(e){return{title:e.title,date:e.date?Storage.formatDateStr(e.date):null,time:e.time,recurring:e.recurring,color:e.color,showInCountdown:e.recurring?true:undefined}}));
+  toast('已添加 '+ok.length+' 个事项');
+ }
+ if(nc.length>0){toast('⚠️ '+nc.map(function(e){return e.title}).join(' ')+' 缺少日期')}
+ E('#ci').value='';autoResize();renderCalendar();renderEventList();renderMilestones();
+}
+
+function autoResize(){var i=E('#ci');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,80)+'px'}
+
+// Milestones
+function getNextRecurringDate(ev,from){
+ var d=new Date(from.getTime());
+ for(var i=0;i<400;i++){if(Storage.matchRec(ev,new Date(d.getTime())))return new Date(d.getTime());d.setDate(d.getDate()+1)}
+ return null;
+}
+function renderMilestones(){
+ var ms=Storage.getMilestones(),n=new Date();n.setHours(0,0,0,0);
+ var cds=ms.filter(function(m){return m.type!=='counter'}),cts=ms.filter(function(m){return m.type==='counter'});
+ // 混入循环事件到倒数日
+ var evs=Storage.getEvents();
+ evs.forEach(function(ev){
+  if(!ev.recurring||ev.showInCountdown===false)return;
+  var nd=getNextRecurringDate(ev,n);
+  if(nd){cds.push({id:ev.id,title:ev.title,date:Storage.formatDateStr(nd),isRec:true})}
+ });
+ cds.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
+ var cdrow=E('#cdrow'),h='';
+ if(!cds.length){h='<span style="color:#99bddd;font-size:10px">点击 + 添加</span>'}
+ cds.forEach(function(m){
+  var t=new Date(m.date+'T00:00:00'),diff=Math.ceil((t-n)/86400000),lbs='';
+  if(diff<0){lbs='已过 '+Math.abs(diff)+' 天'}else if(diff===0){lbs='就是今天'}else{lbs='还有 '+diff+' 天'}
+  h+='<div class="mtag cd">'+H(m.title)+(m.isRec?'<b class="n">'+lbs+'</b>':' <b class="n">'+lbs+'</b><span class="x" data-id="'+m.id+'">×</span>')+'</div>';
+ });
+ cdrow.innerHTML=h;if(cds.length>3)cdrow.classList.add('wrap');else cdrow.classList.remove('wrap');
+ cts.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
+ var ctrow=E('#ctrow'),h2='';
+ if(!cts.length){h2='<span style="color:#a8d99a;font-size:10px">点击 + 添加</span>'}
+ cts.forEach(function(m){
+  var t=new Date(m.date+'T00:00:00'),diff=Math.ceil((t-n)/86400000);
+  h2+='<div class="mtag ct">'+H(m.title)+' <b class="n">已过 '+Math.abs(Math.min(diff,0))+' 天</b><span class="x" data-id="'+m.id+'">×</span></div>';
+ });
+ ctrow.innerHTML=h2;
+}
+function showMilestone(type){
+ curMsType=type;
+ E('#mo').classList.add('on');E('#mt').value='';
+ var to=new Date();
+ if(type==='counter'){to.setMonth(to.getMonth()-3);E('#mt').placeholder='如：入职南威';E('#mhdr').textContent='添加计日'}
+ else{to.setDate(to.getDate()+1);E('#mt').placeholder='如：汕头出发';E('#mhdr').textContent='添加倒数日'}
+ E('#md').value=Storage.formatDateStr(to);E('#mt').focus();
+}
+function hideMilestone(){E('#mo').classList.remove('on');E('#mt').value=''}
+function saveMilestone(){
+ var t=E('#mt').value.trim(),d=E('#md').value;
+ if(!t||!d)return;
+ Storage.addMilestone({title:t,date:d,type:curMsType});hideMilestone();renderMilestones();
+}
+
+// Edit Event
+var editEvtId=null;
+function showEditEvent(id){
+ editEvtId=id;
+ var ev=Storage.getEventById(id);
+ if(!ev)return;
+ E('#eo').classList.add('on');
+ E('#et').value=ev.title||'';
+ E('#ed').value=ev.date||'';
+ E('#etm').value=(ev.time&&ev.time!=='all_day')?ev.time:'';
+ var cp=E('#eo').querySelector('.cpick');
+ cp.querySelectorAll('span').forEach(function(s){s.classList.toggle('on',s.dataset.c===(ev.color||'default'))});
+ var hasRec=!!ev.recurring;
+ E('#rec-toggle').checked=hasRec;E('#rec-opts').classList.toggle('on',hasRec);
+ if(ev.recurring){E('#rec-type').value=ev.recurring.t||'daily';updateRecFields();if(ev.recurring.t==='weekly'){E('#rec-days').querySelectorAll('span').forEach(function(s){s.classList.toggle('on',parseInt(s.dataset.d)===ev.recurring.d)})}if(ev.recurring.t==='monthly'){E('#rec-mday').value=ev.recurring.d||1};E('#rec-countdown').checked=ev.showInCountdown!==false}
+}
+function hideEditEvent(){E('#eo').classList.remove('on');editEvtId=null}
+function saveEditEvent(){
+ if(!editEvtId)return;
+ var t=E('#et').value.trim(),d=E('#ed').value,tm=E('#etm').value;
+ var hasRec=E('#rec-toggle').checked,rec=null;
+ if(hasRec){var rt=E('#rec-type').value;if(rt==='weekly'){var ds=E('#rec-days').querySelector('span.on');rec={t:'weekly',d:ds?parseInt(ds.dataset.d):1}}else if(rt==='monthly'){rec={t:'monthly',d:parseInt(E('#rec-mday').value)||1}}else{rec={t:rt}}}
+ var csel=E('#eo').querySelector('.cpick span.on');
+ var color=csel?csel.dataset.c:'default';
+ if(!t)return;
+ Storage.updateEvent(editEvtId,{title:t,date:d,time:tm||null,recurring:rec,color:color,showInCountdown:E('#rec-countdown').checked});
+ hideEditEvent();renderCalendar();renderEventList();renderMilestones();toast('已更新');
+}
+function deleteEditEvent(){
+ if(!editEvtId)return;
+ Storage.deleteEvent(editEvtId);
+ hideEditEvent();renderCalendar();renderEventList();renderMilestones();toast('已删除');
+}
+
+var tt;
+function toast(m){var el=E('#to');el.textContent=m;el.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){el.classList.remove('on')},1800)}
+
+document.addEventListener('DOMContentLoaded',init);
+// Service Worker
+if('serviceWorker' in navigator){
+ navigator.serviceWorker.register('sw.js').then(function(){console.log('SW registered')}).catch(function(){});
+}
+})();
+</script>
+</body>
+</html>
