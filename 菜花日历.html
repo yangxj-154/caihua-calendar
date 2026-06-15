@@ -618,9 +618,14 @@ function goToday(){var n=new Date();yy=n.getFullYear();mm=n.getMonth();selDate=S
 
 function handleSend(){
  var t=E('#ci').value.trim();if(!t)return;
- var evs=Parser.parse(t);
- // ===== 批量指令后处理：检测 "以上日期...循环"、"标注X色" 等全局指令 =====
- evs=applyBatchInstructions(evs);
+ // Step 1: 从原文提取批量指令（在解析前，避免关键词被吃掉）
+ var inst=extractBatchInstructions(t);
+ // Step 2: 去掉指令文本，只留事件部分
+ var clean=removeBatchInstructions(t);
+ // Step 3: 解析纯事件文本
+ var evs=Parser.parse(clean);
+ // Step 4: 将指令应用到所有事件
+ evs=applyInstructions(evs,inst);
  var ok=evs.filter(function(e){return!e.needsClarify}),nc=evs.filter(function(e){return e.needsClarify});
  if(evs.length===0){toast('没识别到，试试：下周一9点 开会');return}
  if(ok.length>0){
@@ -631,58 +636,47 @@ function handleSend(){
  E('#ci').value='';autoResize();renderCalendar();renderEventList();renderMilestones();
 }
 
-// 批量指令处理器：识别 "以上日期每月循环"、"标注黄色" 等后缀指令
-function applyBatchInstructions(evs){
- if(evs.length<=1) return evs;
- var instructions=[],realEvents=[];
- // 分离真实事件和指令
+// 从原文提取批量指令（解析前调用）
+function extractBatchInstructions(text){
+ var inst={};
+ // 颜色指令：标注黄色、标记红色、并标注蓝色、标绿 等
+ var cm=text.match(/[，,]?\s*(?:并?)?(?:标注|标记|标)(红|黄|绿|蓝)色?/);
+ if(cm) inst.color={红:'red',黄:'yellow',绿:'green',蓝:'blue'}[cm[1]];
+ // 循环指令：以上日期每月循环、全部循环、这些日期每周循环、所有日期每天循环 等
+ var rm=text.match(/(?:以上|全部|这些|所有)(?:日期)?(?:每月|每周|每天|每个工作日)?(?:循环|重复|定期)/);
+ if(rm){
+  var r=rm[0];
+  if(/每月/.test(r)) inst.recurring={t:'monthly'};
+  else if(/每周/.test(r)) inst.recurring={t:'weekly'};
+  else if(/每天/.test(r)) inst.recurring={t:'daily'};
+  else if(/工作日/.test(r)) inst.recurring={t:'weekdays'};
+  else inst.recurring={t:'monthly'};
+ }
+ return inst;
+}
+// 去掉指令文本，只留事件
+function removeBatchInstructions(text){
+ return text
+  .replace(/[，,]?\s*(?:以上|全部|这些|所有)(?:日期)?(?:每月|每周|每天|每个工作日)?(?:循环|重复|定期)/g,'')
+  .replace(/[，,]?\s*(?:并?)?(?:标注|标记|标)(红|黄|绿|蓝)色?/g,'')
+  .replace(/[,，]\s*$/,'').trim();
+}
+// 将指令应用到所有事件
+function applyInstructions(evs,inst){
+ if(!inst||(!inst.color&&!inst.recurring)) return evs;
+ var cMap={红:'red',黄:'yellow',绿:'green',蓝:'blue'};
  for(var i=0;i<evs.length;i++){
-  var title=evs[i].title||'';
-  // 指令模式匹配
-  var isInstruction=false;
-  // 模式1：以上/全部/这些 + 循环/重复/每月/每周/每天
-  if(/^(以上|全部|这些).*(循环|重复|每月|每周|每天|定期)/.test(title)){isInstruction=true;instructions.push({type:'recurring',raw:title})}
-  // 模式2：标注/标记/标 + 颜色
-  else if(/^(标注|标记|标)(红|黄|绿|蓝)色?$/.test(title)||/^并?(标注|标记|标)(红|黄|绿|蓝)色/.test(title)){
-   var cm=title.match(/(红|黄|绿|蓝)/);
-   isInstruction=true;instructions.push({type:'color',color:(cm[1]==='红'?'red':cm[1]==='黄'?'yellow':cm[1]==='绿'?'green':'blue'),raw:title})
+  if(inst.color) evs[i].color=inst.color;
+  if(inst.recurring){
+   evs[i].recurring=JSON.parse(JSON.stringify(inst.recurring));
+   // 从事件日期提取循环日号
+   if(evs[i].recurring.t==='monthly'&&evs[i].date){
+    var dp=evs[i].date.split('-');
+    if(dp.length>=3) evs[i].recurring.d=parseInt(dp[2]);
+   }
   }
-  // 模式3：单独的"循环"/"重复"/"每月循环"等
-  else if(/^(每月|每周|每天)?(循环|重复|定期)$/.test(title)||/^(每个月|每星期)(循环|重复)$/.test(title)){
-   isInstruction=true;instructions.push({type:'recurring',raw:title})
-  }
-  // 模式4："以上日期..." 带颜色和循环
-  else if(/^(以上|全部).*(循环|重复)/.test(title)&&/(红|黄|绿|蓝)/.test(title)){
-   var cm2=title.match(/(红|黄|绿|蓝)/);instructions.push({type:'both',color:cm2[1],raw:title});
-   isInstruction=true;
-  }
-  if(isInstruction){evs[i]._isInst=true}else{realEvents.push(evs[i])}
  }
- // 如果没找到任何指令，原样返回
- if(instructions.length===0) return evs;
- // 应用指令到所有真实事件
- for(var j=0;j<instructions.length;j++){
-  var inst=instructions[j];
-  for(var k=0;k<realEvents.length;k++){
-   if(inst.type==='color'||inst.type==='both') realEvents[k].color=inst.color;
-   if(inst.type==='recurring'||inst.type==='both'){
-    // 从指令中提取循环类型
-    var ir=inst.raw;
-    if(/每月/.test(ir)) realEvents[k].recurring={t:'monthly'};
-    else if(/每周/.test(ir)) realEvents[k].recurring={t:'weekly'};
-    else if(/每天/.test(ir)) realEvents[k].recurring={t:'daily'};
-    else if(/工作日/.test(ir)) realEvents[k].recurring={t:'weekdays'};
-    else if(/循环|重复|定期/.test(ir)&&!/每月|每周|每天|工作日/.test(ir)){
-     // 仅说"循环"，如果事件有具体日期号则按月，否则不设
-     if(realEvents[k].date){
-      var dpart=realEvents[k].date.split('-')[2];
-      if(dpart) realEvents[k].recurring={t:'monthly',d:parseInt(dpart)};
-     }
-    }
-  }}
- }
- // 返回真实事件（去掉指令伪事件）
- return realEvents;
+ return evs;
 }
 
 function autoResize(){var i=E('#ci');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,80)+'px'}
