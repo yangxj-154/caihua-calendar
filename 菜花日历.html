@@ -41,22 +41,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
 .cttl span{color:#4A90D9;font-size:11px;margin-left:4px}
 .ctoday{font-size:12px;padding:4px 10px;border:1px solid #eee;background:#fff;border-radius:14px;cursor:pointer;color:#4A90D9}
 .cgrid{display:grid;grid-template-columns:repeat(7,1fr);padding:4px 8px 8px;gap:2px}
-.chdr{text-align:center;font-size:13px;color:#999;padding:4px 0}
-.ccell{min-height:56px;display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;border-radius:8px;transition:background .15s}
+.chdr{text-align:center;font-size:13px;color:#999;padding:5px 0}
+.ccell{min-height:68px;display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;border-radius:8px;transition:background .15s}
 .ccell:active{background:#f0f0f0}
 .ccell.dim{opacity:.25;pointer-events:none}
 .ccell.sel{background:#e8f4ff}
-.cdnum{font-size:16px;font-weight:500;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.cdnum{font-size:18px;font-weight:500;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%}
 .ccell.today .cdnum{background:#4A90D9;color:#fff;font-weight:700}
 .ccell.sel .cdnum{background:#4A90D9;color:#fff}
 .cevts{width:100%;margin-top:1px;overflow:hidden;text-align:center}
-.cevt{font-size:10px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;padding:1px 4px;border-radius:2px;margin:1px 0;cursor:pointer;color:#fff}
+.cevt{font-size:12px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;padding:2px 5px;border-radius:3px;margin:1px 0;cursor:pointer;color:#fff}
 .cevt:active{opacity:.7}
 .cmore{font-size:7px;color:#bbb;margin-top:1px}
 /* 底部事件列表 */
-.elist{background:#fff;margin-top:4px;padding:8px 14px;border-top:1px solid #eee;border-bottom:1px solid #eee}
-.elist h4{font-size:13px;color:#666;margin-bottom:6px;font-weight:500}
-.eitem{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.elist{background:#fff;margin-top:2px;padding:4px 14px;border-top:1px solid #eee;border-bottom:1px solid #eee;max-height:110px;overflow-y:auto;flex-shrink:0}
+.elist h4{font-size:13px;color:#666;margin-bottom:4px;font-weight:500}
+.eitem{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
 .eitem:hover{background:#f8f8ff}
 .eitem:last-child{border-bottom:none}
 .eitem .bar{width:3px;height:20px;border-radius:2px}
@@ -618,7 +618,10 @@ function goToday(){var n=new Date();yy=n.getFullYear();mm=n.getMonth();selDate=S
 
 function handleSend(){
  var t=E('#ci').value.trim();if(!t)return;
- var evs=Parser.parse(t),ok=evs.filter(function(e){return!e.needsClarify}),nc=evs.filter(function(e){return e.needsClarify});
+ var evs=Parser.parse(t);
+ // ===== 批量指令后处理：检测 "以上日期...循环"、"标注X色" 等全局指令 =====
+ evs=applyBatchInstructions(evs);
+ var ok=evs.filter(function(e){return!e.needsClarify}),nc=evs.filter(function(e){return e.needsClarify});
  if(evs.length===0){toast('没识别到，试试：下周一9点 开会');return}
  if(ok.length>0){
   Storage.addEvents(ok.map(function(e){return{title:e.title,date:e.date?Storage.formatDateStr(e.date):null,time:e.time,recurring:e.recurring,color:e.color,showInCountdown:e.recurring?true:undefined}}));
@@ -626,6 +629,60 @@ function handleSend(){
  }
  if(nc.length>0){toast('⚠️ '+nc.map(function(e){return e.title}).join(' ')+' 缺少日期')}
  E('#ci').value='';autoResize();renderCalendar();renderEventList();renderMilestones();
+}
+
+// 批量指令处理器：识别 "以上日期每月循环"、"标注黄色" 等后缀指令
+function applyBatchInstructions(evs){
+ if(evs.length<=1) return evs;
+ var instructions=[],realEvents=[];
+ // 分离真实事件和指令
+ for(var i=0;i<evs.length;i++){
+  var title=evs[i].title||'';
+  // 指令模式匹配
+  var isInstruction=false;
+  // 模式1：以上/全部/这些 + 循环/重复/每月/每周/每天
+  if(/^(以上|全部|这些).*(循环|重复|每月|每周|每天|定期)/.test(title)){isInstruction=true;instructions.push({type:'recurring',raw:title})}
+  // 模式2：标注/标记/标 + 颜色
+  else if(/^(标注|标记|标)(红|黄|绿|蓝)色?$/.test(title)||/^并?(标注|标记|标)(红|黄|绿|蓝)色/.test(title)){
+   var cm=title.match(/(红|黄|绿|蓝)/);
+   isInstruction=true;instructions.push({type:'color',color:(cm[1]==='红'?'red':cm[1]==='黄'?'yellow':cm[1]==='绿'?'green':'blue'),raw:title})
+  }
+  // 模式3：单独的"循环"/"重复"/"每月循环"等
+  else if(/^(每月|每周|每天)?(循环|重复|定期)$/.test(title)||/^(每个月|每星期)(循环|重复)$/.test(title)){
+   isInstruction=true;instructions.push({type:'recurring',raw:title})
+  }
+  // 模式4："以上日期..." 带颜色和循环
+  else if(/^(以上|全部).*(循环|重复)/.test(title)&&/(红|黄|绿|蓝)/.test(title)){
+   var cm2=title.match(/(红|黄|绿|蓝)/);instructions.push({type:'both',color:cm2[1],raw:title});
+   isInstruction=true;
+  }
+  if(isInstruction){evs[i]._isInst=true}else{realEvents.push(evs[i])}
+ }
+ // 如果没找到任何指令，原样返回
+ if(instructions.length===0) return evs;
+ // 应用指令到所有真实事件
+ for(var j=0;j<instructions.length;j++){
+  var inst=instructions[j];
+  for(var k=0;k<realEvents.length;k++){
+   if(inst.type==='color'||inst.type==='both') realEvents[k].color=inst.color;
+   if(inst.type==='recurring'||inst.type==='both'){
+    // 从指令中提取循环类型
+    var ir=inst.raw;
+    if(/每月/.test(ir)) realEvents[k].recurring={t:'monthly'};
+    else if(/每周/.test(ir)) realEvents[k].recurring={t:'weekly'};
+    else if(/每天/.test(ir)) realEvents[k].recurring={t:'daily'};
+    else if(/工作日/.test(ir)) realEvents[k].recurring={t:'weekdays'};
+    else if(/循环|重复|定期/.test(ir)&&!/每月|每周|每天|工作日/.test(ir)){
+     // 仅说"循环"，如果事件有具体日期号则按月，否则不设
+     if(realEvents[k].date){
+      var dpart=realEvents[k].date.split('-')[2];
+      if(dpart) realEvents[k].recurring={t:'monthly',d:parseInt(dpart)};
+     }
+    }
+  }}
+ }
+ // 返回真实事件（去掉指令伪事件）
+ return realEvents;
 }
 
 function autoResize(){var i=E('#ci');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,80)+'px'}
