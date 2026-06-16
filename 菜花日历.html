@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#4A90D9">
+<meta name="theme-color" content="#1a1a2e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="菜花日历">
@@ -12,106 +12,213 @@
 <script src="https://alcdn.msauth.net/browser/2.28.3/js/msal-browser.min.js"></script>
 <title>菜花日历</title>
 <style>
+:root{
+  --bg-primary:#1a1a2e;--bg-secondary:#16213e;--bg-card:#1e2a45;--bg-hover:#253555;
+  --bg-input:#16213e;--border-color:#2a3a5c;--text-primary:#e0e6f0;--text-secondary:#8899bb;
+  --accent:#4A90D9;--accent-bg:#1e3a5f;--green:#52C41A;--green-bg:#1a3a1a;
+  --yellow:#FAAD14;--yellow-bg:#3a3010;--red:#FF4D4F;--red-bg:#3a1a1a;
+  --dialog-bg:#1e2a45;--toast-bg:rgba(0,0,0,.85);
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#1a1a1a;max-width:520px;margin:0 auto;display:flex;flex-direction:column}
-.top-bar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #eee}
-.countdown-bar{display:flex;align-items:center;padding:6px 12px;gap:6px;background:#EBF3FC;min-height:32px}
-.countdown-bar .label{font-size:10px;color:#4A90D9;font-weight:600;flex-shrink:0;opacity:.7}
-.cd-scroll{display:flex;gap:6px;overflow-x:auto;flex:1;scrollbar-width:none}
-.cd-scroll::-webkit-scrollbar{display:none}
-.cd-row{display:flex;flex-wrap:nowrap;gap:6px;max-height:24px;overflow-x:auto;overflow-y:hidden;flex:1}
-.cd-row.wrap{flex-wrap:wrap;max-height:56px;overflow-y:auto}
-.counter-bar{display:flex;align-items:center;padding:4px 12px;gap:6px;background:#EDF9E8;border-top:1px solid #dcf0d5;min-height:28px}
-.counter-bar .label{font-size:10px;color:#52C41A;font-weight:600;flex-shrink:0;opacity:.7}
-.ct-scroll{display:flex;gap:6px;overflow-x:auto;flex:1;scrollbar-width:none}
-.ct-scroll::-webkit-scrollbar{display:none}
-.mtag{display:inline-flex;align-items:center;gap:2px;padding:2px 8px;border-radius:12px;font-size:11px;white-space:nowrap;flex-shrink:0;cursor:default}
-.mtag.cd{background:#fff;color:#4A90D9}
-.mtag.ct{background:#fff;color:#52C41A}
-.mtag .n{font-weight:700;font-size:12px}
-.mtag .x{display:none;margin-left:2px;width:11px;height:11px;border-radius:50%;background:rgba(0,0,0,.08);font-size:7px;cursor:pointer}
-.mtag:active .x{display:inline-flex;align-items:center;justify-content:center}
-.top-add{width:22px;height:22px;border:1px solid rgba(0,0,0,.1);border-radius:50%;background:transparent;font-size:12px;color:#999;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
-.countdown-bar .top-add{border-color:rgba(74,144,217,.3);color:#4A90D9}
-.counter-bar .top-add{border-color:rgba(82,196,26,.3);color:#52C41A}
-.csec{background:#fff;border-bottom:1px solid #eee}
-.cnav{display:flex;align-items:center;justify-content:space-between;padding:10px 14px}
-.cnb{width:32px;height:32px;border:none;background:#f5f5f5;border-radius:50%;font-size:20px;cursor:pointer;color:#333}
+html,body{height:100%;width:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg-primary);color:var(--text-primary);display:flex!important;flex-direction:row!important;height:100vh;width:100vw;overflow:hidden}
+/* ===== 左侧：日历区域 ===== */
+.left-panel{flex:1 1 0%!important;min-width:0;overflow-y:auto;display:flex;flex-direction:column;background:var(--bg-primary);height:100vh}
+/* ===== 右侧：功能面板 ===== */
+.right-panel{width:300px;min-width:300px;max-width:320px;flex-shrink:0;background:var(--bg-secondary);border-left:1px solid var(--border-color);display:flex!important;flex-direction:column;overflow-y:auto;height:100vh}
+/* 顶部导航栏 */
+.csec{background:var(--bg-secondary);border-bottom:1px solid var(--border-color);flex-shrink:0}
+.cnav{display:flex;align-items:center;justify-content:space-between;padding:10px 16px}
+.cnb{width:32px;height:32px;border:none;background:var(--bg-card);border-radius:50%;font-size:20px;cursor:pointer;color:var(--text-primary)}
+.cnb:hover{background:var(--bg-hover)}
 .cttl{font-size:17px;font-weight:600}
-.cttl span{color:#4A90D9;font-size:11px;margin-left:4px}
-.ctoday{font-size:12px;padding:4px 10px;border:1px solid #eee;background:#fff;border-radius:14px;cursor:pointer;color:#4A90D9}
-.cgrid{display:grid;grid-template-columns:repeat(7,1fr);padding:4px 8px 8px;gap:2px}
-.chdr{text-align:center;font-size:13px;color:#999;padding:5px 0}
-.ccell{min-height:68px;display:flex;flex-direction:column;align-items:center;padding:4px 2px;cursor:pointer;border-radius:8px;transition:background .15s}
-.ccell:active{background:#f0f0f0}
-.ccell.dim{opacity:.25;pointer-events:none}
-.ccell.sel{background:#e8f4ff}
-.cdnum{font-size:18px;font-weight:500;width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%}
-.ccell.today .cdnum{background:#4A90D9;color:#fff;font-weight:700}
-.ccell.sel .cdnum{background:#4A90D9;color:#fff}
-.cevts{width:100%;margin-top:1px;overflow:hidden;text-align:center}
-.cevt{font-size:12px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;padding:2px 5px;border-radius:3px;margin:1px 0;cursor:pointer;color:#fff}
-.cevt:active{opacity:.7}
-.cmore{font-size:7px;color:#bbb;margin-top:1px}
-/* 底部事件列表 */
-.elist{background:#fff;margin-top:2px;padding:4px 14px;border-top:1px solid #eee;border-bottom:1px solid #eee;max-height:110px;overflow-y:auto;flex-shrink:0}
-.elist h4{font-size:13px;color:#666;margin-bottom:4px;font-weight:500}
-.eitem{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid #f5f5f5;cursor:pointer}
-.eitem:hover{background:#f8f8ff}
+.cttl span{color:var(--accent);font-size:11px;margin-left:4px}
+.ctoday{font-size:12px;padding:4px 10px;border:1px solid var(--border-color);background:var(--bg-card);border-radius:14px;cursor:pointer;color:var(--accent)}
+.ctoday:hover{background:var(--bg-hover)}
+
+/* ===== 日历网格 ===== */
+.cal-area{flex:1;overflow-y:auto;padding:6px 10px}
+.cgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.chdr{text-align:center;font-size:12px;color:var(--text-secondary);padding:6px 0;font-weight:500;background:var(--bg-card);border-radius:4px 4px 0 0}
+.ccell{min-height:90px;display:flex;flex-direction:column;padding:3px 4px;cursor:pointer;border-radius:4px;transition:background .15s;background:var(--bg-card);border:1px solid transparent}
+.ccell:hover{background:var(--bg-hover);border-color:var(--border-color)}
+.ccell:active{background:var(--accent-bg)}
+.ccell.dim{opacity:.2;pointer-events:none;background:var(--bg-primary)}
+.ccell.sel{background:var(--accent-bg);border-color:var(--accent)}
+.cdnum{font-size:15px;font-weight:600;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:50%;flex-shrink:0}
+.ccell.today .cdnum{background:var(--accent);color:#fff;font-weight:700}
+.ccell.sel .cdnum{background:var(--accent);color:#fff}
+.cevts{flex:1;margin-top:2px;overflow:hidden;display:flex;flex-direction:column;gap:1px}
+.cevt-text{font-size:11px;line-height:1.35;padding:1px 4px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;display:flex;align-items:center;gap:3px}
+.cevt-text:active{opacity:.7}
+.cevt-text .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.cmore{font-size:10px;color:var(--accent);font-weight:600;text-align:center;padding:1px 0;cursor:pointer}
+
+/* ===== 事件完成状态 ===== */
+.eitem .chk{width:16px;height:16px;border:1.5px solid var(--border-color);border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;transition:all .15s;margin-top:2px;background:transparent}
+.eitem .chk:hover{border-color:var(--accent)}
+.eitem .chk.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.eitem.done .txt{text-decoration:line-through;opacity:.45}
+.eitem.done .bar{opacity:.3}
+.eitem.done .tm,.eitem.done .rec{opacity:.4}
+/* 日历格子内事件完成状态 */
+.cevt-text .chk{width:10px;height:10px;border:1px solid rgba(255,255,255,.25);border-radius:2px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:6px;color:transparent;margin-right:1px}
+.cevt-text.done{text-decoration:line-through;opacity:.45}
+.cevt-text.done .chk.on{background:var(--accent);border-color:var(--accent);color:#fff;opacity:.8}
+
+/* ===== 拖拽样式 ===== */
+.ccell.drag-over{background:rgba(74,144,217,.2)!important;border-color:var(--accent)!important;border-style:dashed!important}
+.cevt-text[draggable=true]{cursor:grab}
+.cevt-text[draggable=true]:active{cursor:grabbing;opacity:.7}
+
+/* ===== 锁定按钮 ===== */
+.lock-btn{font-size:11px;padding:3px 8px;border:1px solid var(--border-color);background:var(--bg-card);border-radius:10px;cursor:pointer;color:var(--text-secondary);white-space:nowrap;transition:all .2s}
+.lock-btn:hover{background:var(--bg-hover)}
+.lock-btn.locked{border-color:rgba(74,144,217,.4);color:var(--accent)}
+.lock-btn.unlocking{border-color:var(--green);color:var(--green);animation:pulse-lock 1.5s infinite}
+@keyframes pulse-lock{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* ===== 右侧面板组件 ===== */
+.rp-section{padding:10px 14px;border-bottom:1px solid var(--border-color);flex-shrink:0}
+.countdown-bar{display:flex;align-items:center;padding:6px 0;gap:6px;background:var(--accent-bg);border-radius:8px;padding:8px 10px;margin-bottom:6px}
+.countdown-bar .label{font-size:10px;color:var(--accent);font-weight:600;flex-shrink:0;min-width:28px}
+.cd-row,.ct-scroll{display:flex;flex-wrap:wrap;gap:4px;flex:1}
+.cd-row{display:flex;flex-wrap:wrap;gap:4px;max-height:none;overflow:visible;flex:1}
+.counter-bar{display:flex;align-items:center;padding:6px 0;gap:6px;background:var(--green-bg);border-radius:8px;padding:8px 10px}
+.counter-bar .label{font-size:10px;color:var(--green);font-weight:600;flex-shrink:0;min-width:28px}
+.mtag{display:inline-flex;align-items:center;gap:2px;padding:2px 7px;border-radius:12px;font-size:11px;white-space:nowrap;cursor:default}
+.mtag.cd{background:var(--bg-card);color:var(--accent)}
+.mtag.ct{background:var(--bg-card);color:var(--green)}
+.mtag .n{font-weight:700;font-size:11px}
+.mtag .x{display:inline-flex;margin-left:2px;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.1);font-size:9px;cursor:pointer;align-items:center;justify-content:center;color:var(--text-secondary)}
+.top-add{width:22px;height:22px;border:1px solid rgba(255,255,255,.15);border-radius:50%;background:transparent;font-size:12px;color:var(--text-secondary);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.top-add:hover{background:var(--bg-hover)}
+.countdown-bar .top-add{border-color:rgba(74,144,217,.4);color:var(--accent)}
+.counter-bar .top-add{border-color:rgba(82,196,26,.4);color:var(--green)}
+
+/* 事件列表 */
+.elist{padding:10px 14px;flex:1;overflow-y:auto;min-height:0}
+.elist h4{font-size:13px;color:var(--text-secondary);margin-bottom:6px;font-weight:500}
+.eitem{display:flex;align-items:flex-start;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-color);cursor:pointer}
 .eitem:last-child{border-bottom:none}
-.eitem .bar{width:3px;height:20px;border-radius:2px}
-.eitem .txt{flex:1;font-size:14px}
-.eitem .tm{font-size:11px;color:#999}
-.eitem .rec{font-size:10px;color:#4A90D9;background:#EBF3FC;padding:1px 6px;border-radius:10px}
-/* 输入 */
-.ibar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:520px;width:100%;display:flex;gap:6px;align-items:center;padding:8px 12px calc(8px + env(safe-area-inset-bottom,0));background:rgba(255,255,255,.95);backdrop-filter:blur(12px);border-top:1px solid #eee;z-index:100}
-.ibar textarea{flex:1;border:1px solid #eee;border-radius:8px;padding:8px 12px;font-size:14px;font-family:inherit;resize:none;outline:none;max-height:80px;min-height:34px;line-height:1.4}
-.ibar textarea:focus{border-color:#4A90D9}
-.ibar textarea::placeholder{color:#bbb}
-.sbtn{width:34px;height:34px;border:none;border-radius:50%;background:#4A90D9;color:#fff;font-size:16px;cursor:pointer;flex-shrink:0}
+.eitem .bar{width:3px;height:20px;border-radius:2px;flex-shrink:0;margin-top:2px}
+.eitem .txt{flex:1;font-size:13px;line-height:1.4}
+.eitem .tm{font-size:11px;color:var(--text-secondary)}
+.eitem .rec{font-size:10px;color:var(--accent);background:var(--accent-bg);padding:1px 6px;border-radius:10px}
+
+/* 输入框 */
+.ibar{display:flex;flex-direction:column;gap:6px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0));background:var(--bg-card);border-top:1px solid var(--border-color);flex-shrink:0;position:relative;z-index:5}
+.ibar textarea{width:100%;border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;font-size:14px;font-family:inherit;resize:none;outline:none;min-height:40px;line-height:1.4;background:var(--bg-input);color:var(--text-primary);user-select:text;-webkit-user-select:text;pointer-events:auto}
+.ibar textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,.3)}
+.ibar textarea::placeholder{color:var(--text-secondary)}
+.sbtn-wrap{display:flex;justify-content:flex-end}
+.sbtn{width:36px;height:36px;border:none;border-radius:50%;background:var(--accent);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.sbtn:hover{opacity:.85}
+
+/* 透明度控制 */
+.opacity-bar{display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-card);border-top:1px solid var(--border-color);flex-shrink:0}
+.opacity-bar label{font-size:11px;color:var(--text-secondary);white-space:nowrap}
+.opacity-bar input[type=range]{flex:1;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border-color);outline:none}
+.opacity-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid var(--bg-card)}
+.opacity-bar .opacity-val{font-size:11px;color:var(--text-secondary);min-width:32px;text-align:right}
+
 /* 弹窗 */
-.ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:200;align-items:center;justify-content:center;padding:20px}
+.ovl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
 .ovl.on{display:flex}
-.dlg{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:320px}
-.dlg h3{font-size:15px;margin-bottom:14px}
-.dlg input,.dlg select{width:100%;padding:9px 12px;border:1px solid #eee;border-radius:8px;font-size:14px;font-family:inherit;outline:none;margin-bottom:8px;background:#fff}
-.dlg input:focus,.dlg select:focus{border-color:#4A90D9}
-.dlg label.switch{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:#666;cursor:pointer}
-.dlg label.switch input[type=checkbox]{width:auto;margin:0;accent-color:#4A90D9}
+.dlg{background:var(--dialog-bg);border:1px solid var(--border-color);border-radius:12px;padding:20px;width:100%;max-width:320px}
+.dlg h3{font-size:15px;margin-bottom:14px;color:var(--text-primary)}
+.dlg input,.dlg select{width:100%;padding:9px 12px;border:1px solid var(--border-color);border-radius:8px;font-size:14px;font-family:inherit;outline:none;margin-bottom:8px;background:var(--bg-input);color:var(--text-primary)}
+.dlg input:focus,.dlg select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(74,144,217,.2)}
+.dlg label.switch{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer}
+.dlg label.switch input[type=checkbox]{width:auto;margin:0;accent-color:var(--accent)}
 .dlg .rec-opts{margin-bottom:8px;display:none}
 .dlg .rec-opts.on{display:block}
-.dlg .rec-opts select{width:100%}
-.dlg .rec-opts .day-pick{display:flex;gap:4px;margin-top:8px}
-.dlg .rec-opts .day-pick span{flex:1;text-align:center;padding:5px 0;border:1px solid #eee;border-radius:6px;font-size:11px;cursor:pointer}
-.dlg .rec-opts .day-pick span.on{background:#4A90D9;color:#fff;border-color:#4A90D9}
-.dlg .rec-opts input[type=number]{width:80px;margin-top:8px}
+.dlg .rec-opts select{width:100%;cursor:pointer;appearance:auto;-webkit-appearance:auto;background:var(--bg-input) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23889' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;padding-right:32px!important;height:40px;font-size:14px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:10px;color:var(--text-primary)}
+.dlg .rec-opts select:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 2px rgba(74,144,217,.2)}
+.dlg .rec-opts .day-pick{display:flex;gap:4px;margin-top:4px}
+.dlg .rec-opts .day-pick span{flex:1;text-align:center;padding:7px 0;border:1px solid var(--border-color);border-radius:6px;font-size:12px;cursor:pointer;transition:all .15s;color:var(--text-primary)}
+.dlg .rec-opts .day-pick span:hover{border-color:var(--accent);background:var(--accent-bg)}
+.dlg .rec-opts .day-pick span.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.dlg .rec-opts input[type=number]{width:100%;margin-top:6px;height:38px;padding:8px 12px;border:1px solid var(--border-color);border-radius:8px;font-size:14px;text-align:center;cursor:pointer;background:var(--bg-input);color:var(--text-primary)}
 .cpick{display:flex;gap:8px;margin-bottom:8px}
 .cpick span{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
-.cpick span.on{border-color:#333;box-shadow:0 0 0 2px #fff,0 0 0 4px currentColor}
+.cpick span.on{border-color:var(--text-primary);box-shadow:0 0 0 2px var(--dialog-bg),0 0 0 4px currentColor}
 .dlg-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}
 .dlg-btns button{padding:7px 18px;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit}
-.dlg-btns .ok{background:#4A90D9;color:#fff}
-.dlg-btns .no{background:#f5f5f5;color:#888}
-.dlg-btns .del{background:#ff4d4f;color:#fff}
-.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:.3s;pointer-events:none}
+.dlg-btns .ok{background:var(--accent);color:#fff}
+.dlg-btns .no{background:var(--bg-card);color:var(--text-secondary)}
+.dlg-btns .del{background:var(--red);color:#fff}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--toast-bg);color:#fff;padding:8px 18px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:.3s;pointer-events:none}
 .toast.on{opacity:1}
+
+/* ===== 移动端适配 ===== */
+@media(max-width:768px){
+body{display:flex!important;flex-direction:column!important;height:auto!important;overflow:auto!important;width:100%!important;max-width:520px;margin:0 auto}
+.left-panel{width:100%!important;min-width:auto;height:auto;overflow:visible}
+.right-panel{width:100%!important;min-width:100%;max-width:100%;border-left:none;border-top:1px solid var(--border-color);overflow:visible;height:auto}
+.cal-area{overflow:visible}
+.ccell{min-height:70px}
+.ibar{position:sticky;bottom:0;background:rgba(22,33,62,.95);backdrop-filter:blur(12px);z-index:10}
+.elist{max-height:140px}
+}
 </style>
 </head>
 <body>
 
-<div class="top-bar">
-  <div class="countdown-bar">
-    <span class="label">倒数</span>
-    <div class="cd-row" id="cdrow"></div>
-    <button class="top-add" id="cdadd">+</button>
+<!-- 左侧：日历区域 -->
+<div class="left-panel">
+<div class="csec">
+  <div class="cnav">
+    <button class="cnb" id="pm">‹</button>
+    <div class="cttl" id="ct">2026年6月 <span>v26</span></div>
+    <button class="cnb" id="nm">›</button>
+    <button class="ctoday" id="td">今天</button>
+    <button class="ctoday" id="syncbtn" title="云端同步">☁</button>
+    <button class="ctoday" id="outlookbtn" title="Outlook同步">📧</button>
+    <button class="lock-btn locked" id="lockbtn" title="默认锁定，点击后可调整位置和大小">🔒锁定</button>
   </div>
-  <div class="counter-bar">
-    <span class="label">计日</span>
-    <div class="ct-scroll" id="ctrow"></div>
-    <button class="top-add" id="ctadd">+</button>
+</div>
+<div class="cal-area">
+  <div class="cgrid" id="cg"></div>
+</div>
+</div>
+
+<!-- 右侧：功能面板 -->
+<div class="right-panel">
+  <!-- 倒数日 + 计日 -->
+  <div class="rp-section">
+    <div class="countdown-bar">
+      <span class="label">倒数</span>
+      <div class="cd-row" id="cdrow"></div>
+      <button class="top-add" id="cdadd">+</button>
+    </div>
+    <div class="counter-bar">
+      <span class="label">计日</span>
+      <div class="ct-scroll" id="ctrow"></div>
+      <button class="top-add" id="ctadd">+</button>
+    </div>
+  </div>
+
+  <!-- 选中日期的事件列表 -->
+  <div class="elist" id="el">
+    <h4 id="elt">点击日期查看事件</h4>
+    <div id="elc"></div>
+  </div>
+
+  <!-- 输入框 -->
+  <div class="ibar">
+    <textarea id="ci" placeholder="写待办… (如下周一9点 开会 / 每周五 还款)" rows="2"></textarea>
+    <div class="sbtn-wrap"><button class="sbtn" id="sb">↑</button></div>
+  </div>
+  <!-- 透明度控制 (日历清单式: 0%=完全透明/桌面壁纸, 100%=不透明) -->
+  <div class="opacity-bar">
+    <label>背景</label>
+    <input type="range" id="opacity-slider" min="0" max="100" value="85">
+    <span class="opacity-val" id="opacity-val">85%</span>
   </div>
 </div>
 
+<!-- 弹窗：倒数日/计日编辑 -->
 <div class="ovl" id="mo">
   <div class="dlg">
     <h3 id="mhdr">添加倒数日</h3>
@@ -124,6 +231,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
   </div>
 </div>
 
+<!-- 弹窗：事件编辑 -->
 <div class="ovl" id="eo">
   <div class="dlg">
     <h3>编辑事件</h3>
@@ -159,6 +267,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
   </div>
 </div>
 
+<!-- 弹窗：云端同步 -->
 <div class="ovl" id="so">
   <div class="dlg">
     <h3>☁ 云端同步</h3>
@@ -178,6 +287,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
   </div>
 </div>
 
+<!-- 弹窗：Outlook同步 -->
 <div class="ovl" id="oo">
   <div class="dlg">
     <h3>📧 Outlook 同步</h3>
@@ -208,29 +318,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
   </div>
 </div>
 
-<div class="csec">
-  <div class="cnav">
-    <button class="cnb" id="pm">‹</button>
-    <div class="cttl" id="ct">2026年6月 <span>v22</span></div>
-    <button class="cnb" id="nm">›</button>
-    <button class="ctoday" id="td">今天</button>
-    <button class="ctoday" id="syncbtn" title="云端同步">☁</button>
-    <button class="ctoday" id="outlookbtn" title="Outlook同步">📧</button>
-  </div>
-  <div class="cgrid" id="cg"></div>
-</div>
-
-<!-- 选中日期的事件列表 -->
-<div class="elist" id="el">
-  <h4 id="elt">点击日期查看事件</h4>
-  <div id="elc"></div>
-</div>
-
-<div class="ibar">
-  <textarea id="ci" placeholder="写待办… (如下周一9点 开会 / 每周五 还款)" rows="1"></textarea>
-  <button class="sbtn" id="sb">↑</button>
-</div>
-
 <div class="toast" id="to"></div>
 
 <script>
@@ -250,7 +337,7 @@ window.Parser={
   line=line.replace(/^\d+[、，,.。\s]+/,'').trim();if(!line)return null;
   var r={title:line,date:null,time:null,recurring:null,color:'default',needsClarify:false};
   // recurring patterns first
-  var pats=[{re:/每天/,fn:function(){return{t:'daily'}}},{re:/(每个)?工作日/,fn:function(){return{t:'weekdays'}}},{re:/每周([一二三四五六日天])/,fn:function(m){return{t:'weekly',d:N[m[1]]}}},{re:/每月(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每个月(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每个月的(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每月的(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}}];
+  var pats=[{re:/每天/,fn:function(){return{t:'daily'}}},{re:/(每个)?工作日/,fn:function(){return{t:'weekdays'}}},{re:/每周([一二三四五六日])/,fn:function(m){return{t:'weekly',d:N[m[1]]}}},{re:/每月(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每个月(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每个月的(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}},{re:/每月的(\d{1,2})[日号]/,fn:function(m){return{t:'monthly',d:parseInt(m[1])}}}];
   for(var i=0;i<pats.length;i++){var m=line.match(pats[i].re);if(m){r.recurring=pats[i].fn(m);r.recurring.matched=m[0];r.title=r.title.replace(m[0],'').trim();break}}
   // time
   var tps=[{re:/上午(\d{1,2})点(半|(\d{1,2})分?)?/,fn:function(m){return pad(parseInt(m[1]),m[2]==='半'?30:(m[3]?parseInt(m[3]):0))}},{re:/下午(\d{1,2})点(半|(\d{1,2})分?)?/,fn:function(m){return pad(parseInt(m[1])+12,m[2]==='半'?30:(m[3]?parseInt(m[3]):0))}},{re:/晚上(\d{1,2})点(半|(\d{1,2})分?)?/,fn:function(m){return pad(parseInt(m[1])+12,m[2]==='半'?30:(m[3]?parseInt(m[3]):0))}},{re:/(\d{1,2}):(\d{2})/,fn:function(m){return m[1].padStart(2,'0')+':'+m[2]}},{re:/全天/,fn:function(){return'all_day'}}];
@@ -261,8 +348,8 @@ window.Parser={
   for(var i=0;i<dps.length;i++){var m=r.title.match(dps[i].re);if(m){r.date=dps[i].fn(m);r.title=r.title.replace(m[0],'').trim();found=true;break}}
   if(!found){var am=r.title.match(/^(\d{1,2})月(\d{1,2})[日号]/);if(am){var mo=parseInt(am[1]),dy=parseInt(am[2]);if(mo>=1&&mo<=12&&dy>=1&&dy<=31){var d=new Date(now().getFullYear(),mo-1,dy);if(d<now())d.setFullYear(d.getFullYear()+1);r.date=d;r.title=r.title.replace(am[0],'').trim();found=true}}}
   if(!found){var dm=r.title.match(/^(\d{1,2})[日号](?![-.\d])/);if(dm){var dy=parseInt(dm[1]);if(dy>=1&&dy<=31){var d=new Date(now().getFullYear(),now().getMonth(),dy);if(d<now())d.setMonth(d.getMonth()+1);r.date=d;r.title=r.title.replace(dm[0],'').trim();found=true}}}
-  // If has recurring but no date found, set date to next occurrence of that weekday (today or next)
-  if(r.recurring&&!r.date&&r.recurring.t==='weekly'){r.date=getNextWeekday(D[r.recurring.d],0)} // 0 = this week or next
+  // If has recurring but no date found
+  if(r.recurring&&!r.date&&r.recurring.t==='weekly'){r.date=getNextWeekday(D[r.recurring.d],0)}
   if(!found&&!r.recurring){r.needsClarify=true}
   r.title=r.title.replace(/^[,，、。.\s]+/,'').replace(/[,，、。.\s]+$/,'').replace(/^[【\[].*?[】\]]/,'').trim();
   if(!r.title)r.title='(无标题)';
@@ -277,7 +364,7 @@ window.Parser={
  formatDate:function(date){if(!date)return'';return date.getFullYear()+'/'+(date.getMonth()+1)+'/'+date.getDate()+' 周'+D[date.getDay()]},
  recLabel:function(r){if(!r)return'';var m={daily:'每天',weekdays:'工作日'};if(m[r.t])return m[r.t];if(r.t==='weekly')return'每周'+D[r.d];if(r.t==='monthly')return'每月'+r.d+'号';return''}
 };
-function pad(h,m){if(h===12)h=12;if(h>24)h-=12;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
+function pad(h,m){if(h===12)h=12;if(h>24)h-=24;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')}
 })();
 
 // ====== Storage ======
@@ -298,8 +385,8 @@ return{
  deleteEvent:function(id){saveEvs(getEvs().filter(function(e){return e.id!==id}))},
  getMonthEventDates:function(yy,mm){var evs=getEvs(),map={},f=new Date(yy,mm,1),l=new Date(yy,mm+1,0);
   for(var i=0;i<evs.length;i++){var ev=evs[i];
-   if(ev.recurring){for(var d=new Date(f.getTime());d<=l;d.setDate(d.getDate()+1)){if(matchRec(ev,new Date(d.getTime()))){var k=fmt(d);if(!map[k])map[k]=[];map[k].push({id:ev.id,title:ev.title,color:ev.color,time:ev.time,recurring:ev.recurring})}}}
-   else if(ev.date){var p=ev.date.split('-'),y=parseInt(p[0]),m2=parseInt(p[1]);if(y===yy&&m2-1===mm){if(!map[ev.date])map[ev.date]=[];map[ev.date].push({id:ev.id,title:ev.title,color:ev.color,time:ev.time,recurring:ev.recurring})}}}
+   if(ev.recurring){for(var d=new Date(f.getTime());d<=l;d.setDate(d.getDate()+1)){if(matchRec(ev,new Date(d.getTime()))){var k=fmt(d);if(!map[k])map[k]=[];map[k].push({id:ev.id,title:ev.title,color:ev.color,time:ev.time,recurring:ev.recurring,done:ev.done||false})}}}
+   else if(ev.date){var p=ev.date.split('-'),y=parseInt(p[0]),m2=parseInt(p[1]);if(y===yy&&m2-1===mm){if(!map[ev.date])map[ev.date]=[];map[ev.date].push({id:ev.id,title:ev.title,color:ev.color,time:ev.time,recurring:ev.recurring,done:ev.done||false})}}}
   return map},
  formatDateStr:fmt,
  getMilestones:function(){return get('cal_ms','[]')},
@@ -519,6 +606,30 @@ function bindEvents(){
  E('#sb').addEventListener('click',handleSend);
  E('#ci').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend()}});
  E('#ci').addEventListener('input',autoResize);
+ // 透明度控制 (日历清单式穿透透明)
+ var opSlider=E('#opacity-slider'),opVal=E('#opacity-val');
+ var savedOp=localStorage.getItem('cal_bg_alpha');
+ if(savedOp){opSlider.value=savedOp;opVal.textContent=savedOp+'%'}
+ // 如果在 Electron 环境，同步到 Electron API
+ if(window.electronAPI){
+  var initAlpha=(savedOp||85)/100;
+  window.electronAPI.setBgAlpha(initAlpha).catch(function(){});
+ }
+ opSlider.addEventListener('input',function(){
+  var v=this.value;
+  opVal.textContent=v+'%';
+  localStorage.setItem('cal_bg_alpha',v);
+  // Electron环境：调用主进程API实现真正的窗口穿透透明
+  if(window.electronAPI){window.electronAPI.setBgAlpha(v/100).catch(function(){});return}
+  // 浏览器预览：用CSS模拟透明效果
+  var a=v/100;
+  document.body.style.background='transparent';
+  document.querySelector('.left-panel').style.background='rgba(26,26,46,'+a+')';
+  document.querySelector('.right-panel').style.background='rgba(22,33,62,'+a+')';
+  document.querySelectorAll('.ccell').forEach(function(c){c.style.background='rgba(30,42,69,'+Math.min(1,a+0.15)+')'});
+  document.querySelectorAll('.csec').forEach(function(c){c.style.background='rgba(22,33,62,'+a+')'});
+  document.querySelectorAll('.ibar').forEach(function(c){c.style.background='rgba(30,42,69,'+a+')'});
+ });
  E('#cdadd').addEventListener('click',function(){showMilestone('countdown')});
  E('#ctadd').addEventListener('click',function(){showMilestone('counter')});
  E('#mc').addEventListener('click',hideMilestone);
@@ -548,16 +659,67 @@ function bindEvents(){
  E('#opull').addEventListener('click',outlookPull);
  E('#opush').addEventListener('click',outlookPush);
  E('#ohelp').addEventListener('click',function(e){e.preventDefault();E('#ohelpbox').style.display=E('#ohelpbox').style.display==='none'?'block':'none'});
- // Calendar click - select date
+ // Calendar click - select date or edit event
  E('#cg').addEventListener('click',function(e){
   var cell=e.target.closest('.ccell');
   if(cell&&cell.dataset.date){selectDate(cell.dataset.date)}
-  var evt=e.target.closest('.cevt');
-  if(evt&&evt.dataset.id){showEditEvent(evt.dataset.id)}
+  var evtEl=e.target.closest('.cevt-text');
+  if(evtEl&&evtEl.dataset.id){showEditEvent(evtEl.dataset.id)}
  });
  E('#cdrow').addEventListener('click',function(e){var b=e.target.closest('.x');if(b){Storage.deleteMilestone(b.dataset.id);renderMilestones()}});
  E('#ctrow').addEventListener('click',function(e){var b=e.target.closest('.x');if(b){Storage.deleteMilestone(b.dataset.id);renderMilestones()}});
  E('#rec-days').addEventListener('click',function(e){var s=e.target.closest('span');if(!s)return;E('#rec-days').querySelectorAll('span').forEach(function(x){x.classList.remove('on')});s.classList.add('on')});
+ // ===== 日历格子事件拖拽到其他日期 =====
+ var dragEvtId=null;
+ E('#cg').addEventListener('dragstart',function(e){
+  var el=e.target.closest('.cevt-text');if(!el)return;
+  dragEvtId=el.dataset.id;e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragEvtId);
+  setTimeout(function(){el.style.opacity='.4'},0);
+ });
+ E('#cg').addEventListener('dragend',function(e){
+  var el=e.target.closest('.cevt-text');if(el)el.style.opacity='1';
+  E('#cg').querySelectorAll('.ccell.drag-over').forEach(function(c){c.classList.remove('drag-over')});dragEvtId=null;
+ });
+ E('#cg').addEventListener('dragover',function(e){
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  var cell=e.target.closest('.ccell');if(cell&&cell.dataset.date&&!cell.classList.contains('dim')){
+   E('#cg').querySelectorAll('.ccell.drag-over').forEach(function(c){c.classList.remove('drag-over')});cell.classList.add('drag-over')}
+ });
+ E('#cg').addEventListener('dragleave',function(e){var cell=e.target.closest('.ccell');if(cell)cell.classList.remove('drag-over')});
+ E('#cg').addEventListener('drop',function(e){
+  e.preventDefault();var cell=e.target.closest('.ccell');
+  if(!cell||!cell.dataset.date||cell.classList.contains('dim'))return;
+  var evtId=e.dataTransfer.getData('text/plain');if(!evtId)return;
+  var newDate=cell.dataset.date,ev=Storage.getEventById(evtId);
+  if(!ev||!ev.recurring){Storage.updateEvent(evtId,{date:newDate});toast('已移到 '+newDate);renderCalendar();renderEventList();renderMilestones()}
+  else{toast('循环事件暂不支持拖拽')}
+  E('#cg').querySelectorAll('.ccell.drag-over').forEach(function(c){c.classList.remove('drag-over')});
+ });
+ // 日历格子内checkbox点击→切换完成(阻止冒泡，防止触发行程选择)
+ E('#cg').addEventListener('click',function(e){
+  var chk=e.target.closest('.cevt-text .chk');if(!chk)return;
+  e.stopPropagation();
+  var cevt=chk.closest('.cevt-text');if(!cevt)return;
+  var id=cevt.dataset.id,ev=Storage.getEventById(id);
+  if(ev){Storage.updateEvent(id,{done:!ev.done});renderCalendar();renderEventList()}
+ });
+ // ===== 锁定/调整模式 =====
+ var isLocked=true;
+ var lockBtn=E('#lockbtn');
+ // 初始化时从localStorage恢复锁定状态
+ var savedLock=localStorage.getItem('cal_locked');
+ if(savedLock!==null){isLocked=savedLock==='true'}
+ updateLockUI();
+ lockBtn.addEventListener('click',function(){
+  isLocked=!isLocked;localStorage.setItem('cal_locked',isLocked);updateLockUI();
+  if(window.electronAPI){window.electronAPI.setLockMode(isLocked).catch(function(){})}
+ });
+ function updateLockUI(){
+  if(isLocked){lockBtn.textContent='🔒锁定';lockBtn.className='lock-btn locked';lockBtn.title='点击后可调整位置和大小'}
+  else{lockBtn.textContent='🔓调整中';lockBtn.className='lock-btn unlocking';lockBtn.title='点击锁定位置和大小'}
+ }
+ // 如果在Electron环境，初始化锁定状态
+ if(window.electronAPI){window.electronAPI.setLockMode(isLocked).catch(function(){})}
 }
 
 function updateRecFields(){
@@ -570,26 +732,29 @@ function renderAll(){renderMilestones();renderCalendar();renderEventList()}
 
 function selectDate(ds){
  selDate=ds;
- renderCalendar(); // update selection highlight
+ renderCalendar();
  renderEventList();
 }
 
 function renderCalendar(){
  var g=E('#cg'),t=E('#ct'),dm=Storage.getMonthEventDates(yy,mm),td=Storage.formatDateStr(new Date());
- t.innerHTML=yy+'年'+(mm+1)+'月 <span>v22</span>';
+ t.innerHTML=yy+'年'+(mm+1)+'月 <span>v26</span>';
  var fd=new Date(yy,mm,1).getDay(),dim=new Date(yy,mm+1,0).getDate(),pdim=new Date(yy,mm,0).getDate();
  var h='';
  '日一二三四五六'.split('').forEach(function(d){h+='<div class="chdr">'+d+'</div>'});
+ // 上月尾部
  for(var i=fd-1;i>=0;i--){h+='<div class="ccell dim"><div class="cdnum">'+(pdim-i)+'</div></div>'}
+ // 本月日期 - 方格布局，每个格子显示事件文字
  for(var d=1;d<=dim;d++){
   var ds=yy+'-'+String(mm+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
   var evs=dm[ds]||[],cls='ccell';
   if(ds===td)cls+=' today';
   if(ds===selDate)cls+=' sel';
-  var eh='',max=2; // show max 2 in cell
+  var eh='',max=4;
   for(var i=0;i<Math.min(evs.length,max);i++){
    var co=COLORS[evs[i].color]||COLORS['default'];
-   eh+='<div class="cevt" data-id="'+evs[i].id+'" style="background:'+co+'">'+H(evs[i].title)+'</div>';
+   var doneC=evs[i].done?' done':'',chkC=evs[i].done?' on':'',chkTxt=evs[i].done?'✓':'';
+   eh+='<div class="cevt-text'+doneC+'" data-id="'+evs[i].id+'" draggable="true" style="color:'+co+'"><span class="chk'+chkC+'">'+chkTxt+'</span><span class="dot" style="background:'+co+'"></span>'+H(evs[i].title)+'</div>';
   }
   if(evs.length>max){eh+='<div class="cmore">+'+(evs.length-max)+'</div>'}
   h+='<div class="'+cls+'" data-date="'+ds+'"><div class="cdnum">'+d+'</div>'+(evs.length?'<div class="cevts">'+eh+'</div>':'')+'</div>'
@@ -606,11 +771,18 @@ function renderEventList(){
  var html='';
  evs.forEach(function(ev){
   var co=COLORS[ev.color]||COLORS['default'],tm=ev.time==='all_day'?'全天':(ev.time||''),rl=ev.recurring?(' 🔁'+Parser.recLabel(ev.recurring)):'';
-  html+='<div class="eitem" data-id="'+ev.id+'"><div class="bar" style="background:'+co+'"></div><div class="txt">'+H(ev.title)+'</div>'+(tm?'<div class="tm">'+tm+'</div>':'')+(rl?'<div class="rec">'+rl+'</div>':'')+'</div>';
+  var doneC=ev.done?' done':'',chkC=ev.done?' on':'',chkTxt=ev.done?'✓':'';
+  html+='<div class="eitem'+doneC+'" data-id="'+ev.id+'"><span class="chk'+chkC+'" data-chk="'+ev.id+'">'+chkTxt+'</span><div class="bar" style="background:'+co+'"></div><div class="txt">'+H(ev.title)+'</div>'+(tm?'<div class="tm">'+tm+'</div>':'')+(rl?'<div class="rec">'+rl+'</div>':'')+'</div>';
  });
  list.innerHTML=html;
- // bind click on list items
- list.querySelectorAll('.eitem').forEach(function(it){it.addEventListener('click',function(){showEditEvent(this.dataset.id)})});
+ // 事件委托：checkbox点击→切换完成，其他点击→编辑
+ list.addEventListener('click',function(e){
+  var chk=e.target.closest('.chk');
+  if(chk){e.stopPropagation();var id=chk.dataset.chk,ev=Storage.getEventById(id);
+   if(ev){Storage.updateEvent(id,{done:!ev.done});renderCalendar();renderEventList();toast(ev.done?'已标记完成':'已取消完成')}return}
+  var item=e.target.closest('.eitem');
+  if(item){showEditEvent(item.dataset.id)}
+ });
 }
 
 function chMonth(d){mm+=d;if(mm<0){mm=11;yy--}if(mm>11){mm=0;yy++};renderCalendar();renderEventList()}
@@ -618,31 +790,28 @@ function goToday(){var n=new Date();yy=n.getFullYear();mm=n.getMonth();selDate=S
 
 function handleSend(){
  var t=E('#ci').value.trim();if(!t)return;
- // Step 1: 从原文提取批量指令（在解析前，避免关键词被吃掉）
  var inst=extractBatchInstructions(t);
- // Step 2: 去掉指令文本，只留事件部分
  var clean=removeBatchInstructions(t);
- // Step 3: 解析纯事件文本
  var evs=Parser.parse(clean);
- // Step 4: 将指令应用到所有事件
  evs=applyInstructions(evs,inst);
  var ok=evs.filter(function(e){return!e.needsClarify}),nc=evs.filter(function(e){return e.needsClarify});
+ // 如果选中了日期，将缺少日期的事件补上选中日期
+ if(selDate){nc.forEach(function(e){e.date=new Date(selDate+'T00:00:00');e.needsClarify=false;ok.push(e)});nc=[]}
+ // 如果选中了日期，覆盖parser自动延后的过去日期(如6月16日输入"10号开会"→parser改为7月10日，强制用选中的日期)
+ if(selDate){ok.forEach(function(e){if(!e.recurring&&e.date){var pd=Storage.formatDateStr(e.date);if(pd!==selDate){e.date=new Date(selDate+'T00:00:00')}}})}
  if(evs.length===0){toast('没识别到，试试：下周一9点 开会');return}
  if(ok.length>0){
   Storage.addEvents(ok.map(function(e){return{title:e.title,date:e.date?Storage.formatDateStr(e.date):null,time:e.time,recurring:e.recurring,color:e.color,showInCountdown:e.recurring?true:undefined}}));
   toast('已添加 '+ok.length+' 个事项');
  }
- if(nc.length>0){toast('⚠️ '+nc.map(function(e){return e.title}).join(' ')+' 缺少日期')}
+ if(nc.length>0){toast('请先点击一个日期，再输入事项')}
  E('#ci').value='';autoResize();renderCalendar();renderEventList();renderMilestones();
 }
 
-// 从原文提取批量指令（解析前调用）
 function extractBatchInstructions(text){
  var inst={};
- // 颜色指令：标注黄色、标记红色、并标注蓝色、标绿 等
  var cm=text.match(/[，,]?\s*(?:并?)?(?:标注|标记|标)(红|黄|绿|蓝)色?/);
  if(cm) inst.color={红:'red',黄:'yellow',绿:'green',蓝:'blue'}[cm[1]];
- // 循环指令：以上日期每月循环、全部循环、这些日期每周循环、所有日期每天循环 等
  var rm=text.match(/(?:以上|全部|这些|所有)(?:日期)?(?:每月|每周|每天|每个工作日)?(?:循环|重复|定期)/);
  if(rm){
   var r=rm[0];
@@ -654,14 +823,12 @@ function extractBatchInstructions(text){
  }
  return inst;
 }
-// 去掉指令文本，只留事件
 function removeBatchInstructions(text){
  return text
   .replace(/[，,]?\s*(?:以上|全部|这些|所有)(?:日期)?(?:每月|每周|每天|每个工作日)?(?:循环|重复|定期)/g,'')
   .replace(/[，,]?\s*(?:并?)?(?:标注|标记|标)(红|黄|绿|蓝)色?/g,'')
   .replace(/[,，]\s*$/,'').trim();
 }
-// 将指令应用到所有事件
 function applyInstructions(evs,inst){
  if(!inst||(!inst.color&&!inst.recurring)) return evs;
  var cMap={红:'red',黄:'yellow',绿:'green',蓝:'blue'};
@@ -669,7 +836,6 @@ function applyInstructions(evs,inst){
   if(inst.color) evs[i].color=inst.color;
   if(inst.recurring){
    evs[i].recurring=JSON.parse(JSON.stringify(inst.recurring));
-   // 从事件日期提取循环日号
    if(evs[i].recurring.t==='monthly'&&evs[i].date){
     var dp=evs[i].date.split('-');
     if(dp.length>=3) evs[i].recurring.d=parseInt(dp[2]);
@@ -679,7 +845,7 @@ function applyInstructions(evs,inst){
  return evs;
 }
 
-function autoResize(){var i=E('#ci');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,80)+'px'}
+function autoResize(){var i=E('#ci');i.style.height='auto';i.style.height=Math.min(i.scrollHeight,120)+'px'}
 
 // Milestones
 function getNextRecurringDate(ev,from){
@@ -690,7 +856,6 @@ function getNextRecurringDate(ev,from){
 function renderMilestones(){
  var ms=Storage.getMilestones(),n=new Date();n.setHours(0,0,0,0);
  var cds=ms.filter(function(m){return m.type!=='counter'}),cts=ms.filter(function(m){return m.type==='counter'});
- // 混入循环事件到倒数日
  var evs=Storage.getEvents();
  evs.forEach(function(ev){
   if(!ev.recurring||ev.showInCountdown===false)return;
@@ -705,16 +870,18 @@ function renderMilestones(){
   if(diff<0){lbs='已过 '+Math.abs(diff)+' 天'}else if(diff===0){lbs='就是今天'}else{lbs='还有 '+diff+' 天'}
   h+='<div class="mtag cd">'+H(m.title)+(m.isRec?'<b class="n">'+lbs+'</b>':' <b class="n">'+lbs+'</b><span class="x" data-id="'+m.id+'">×</span>')+'</div>';
  });
- cdrow.innerHTML=h;if(cds.length>3)cdrow.classList.add('wrap');else cdrow.classList.remove('wrap');
+ cdrow.innerHTML=h;cdrow.classList.remove('wrap');
  cts.sort(function(a,b){return new Date(a.date)-new Date(b.date)});
  var ctrow=E('#ctrow'),h2='';
  if(!cts.length){h2='<span style="color:#a8d99a;font-size:10px">点击 + 添加</span>'}
  cts.forEach(function(m){
   var t=new Date(m.date+'T00:00:00'),diff=Math.ceil((t-n)/86400000);
-  h2+='<div class="mtag ct">'+H(m.title)+' <b class="n">已过 '+Math.abs(Math.min(diff,0))+' 天</b><span class="x" data-id="'+m.id+'">×</span></div>';
+  h2+='<div class="mtag ct">'+H(m.title)+' <b class="n">已过 '+absMin(diff)+' 天</b><span class="x" data-id="'+m.id+'">×</span></div>';
  });
  ctrow.innerHTML=h2;
 }
+function absMin(n){return n<0?Math.abs(Math.min(n,0)):Math.min(n,0)}
+
 function showMilestone(type){
  curMsType=type;
  E('#mo').classList.add('on');E('#mt').value='';
