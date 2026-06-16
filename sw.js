@@ -1,4 +1,4 @@
-var CACHE='caihua-cal-v1';
+var CACHE='caihua-cal-v26';
 var ASSETS=['./','./index.html','./manifest.json','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',function(e){
  e.waitUntil(caches.open(CACHE).then(function(c){return c.addAll(ASSETS)}));
